@@ -2,201 +2,107 @@
 
 Visit https://lsif.dev/ to learn about LSIF.
 
-Please note, lsif-java is currently undergoing a large-scale rewrite. Progress can be followed at [tree/nsc/comsunsource](https://github.com/sourcegraph/lsif-java/tree/nsc/comsunsource).
+## Usage
 
-## Installation
+⚠️ This project is under development so there is nothing to try out at the
+moment.
 
-- Java 1.8 or higher
-- Maven
+### Supported tools and versions
 
-### macOS ###
+Currently, only Java 8 with the build tool sbt is supported. We hope to increase
+the support as the project evolves.
 
-We recommend using brew to install dependancies on mac OS, you can install brew using the following command:
-```
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-```
+| Language version | Support |
+| ---------------- | ------- |
+| Java 7           | ❌      |
+| Java 8           | ✅      |
+| Java 11+         | ❌      |
 
-If you already have brew installed, you'll need to make sure its up to date: 
-```
-brew update && brew upgrade brew-cask && brew cleanup && brew cask cleanup
-```
+| Build tool | Support |
+| ---------- | ------- |
+| Gradle     | ❌      |
+| Maven      | ❌      |
+| Bazel      | ❌      |
+| sbt        | ✅      |
 
-Install Java:
-```
-brew tap homebrew/cask-versions
-brew update
-brew cask install homebrew/cask-versions/adoptopenjdk8
-```
+## Contributing
 
-Install Maven:
-```
-brew install maven
-```
+The following sections provide tips if you want to contribute to this codebase.
 
-### Ubuntu 18.04 ###
+### Overview
 
-```
-apt-get update && apt-get install -y git default-jdk maven
-```
+This project is implemented as a
+[Java compiler plugin](https://www.baeldung.com/java-build-compiler-plugin) that
+generates one
+[SemanticDB](https://scalameta.org/docs/semanticdb/specification.html) file for
+each `*.java` source file. After compilation completes, the SemanticDB files are
+processed to produce LSIF.
 
-## Build the LSIF indexer
+![A three stage pipeline that starts with a list of Java sources, creates a list of SemanticDB files that then become a single LSIF index.](docs/img/semanticdb-javac-pipeline.png)
 
-```
-git clone https://github.com/sourcegraph/lsif-java
-cd lsif-java
-./gradlew installDist
-```
+### Why Java compiler plugin?
 
-## Generating an LSIF dump
+There are several benefits to implementing lsif-java as a compiler plugin:
 
-### **Step 1**
+- **Simple installation**: most Java build tools support a way to configure
+  compiler plugins.
+- **Fidelity**: by using Java compiler APIs, we ensure that the produced LSIF
+  data is accurate even as new Java versions are released.
 
-Ensure you have a `pom.xml` (Maven projects already have one):
+### Why SemanticDB?
 
-For single-project Gradle projects **_(experimental)_**:
+SemanticDB is Protobuf schema for semantic information such as symbols and types
+about programs in Java, Scala and other languages. There are several benefits to
+using SemanticDB as an intermediary representation for LSIF:
 
-1. Add [`maven-publish`](https://docs.gradle.org/current/userguide/publishing_maven.html) to your `plugins` in `build.gradle`
-```
-plugins {
-  id 'maven-publish'
-}
-```
-2. Specify a publication:
+- **Simplicity**: It's easy to translate a single Java source file into a single
+  SemanticDB file. It's more complicated to produce LSIF directly because LSIF
+  needs a project-wide context to produce definitions/hovers.
+- **Performance**: SemanticDB is fast to write and read. The compiler introduces
+  low overhead on compilation and the final conversion to LSIF can be safely
+  parallelized.
 
-**_with default sourceSets:_**
+### Project structure
 
-```groovy
-publishing {
-    model {
-        tasks.generatePomFileForSourcegraphPublication {
-            destination = file("$projectDir/pom.xml")
-        }
-    }
-    publications {
-        sourcegraph(MavenPublication) {
-            from components.java
-        }
-    }
-}
-```
+These are the main components of the project.
 
-**_with non-default sourceSets:_**
+- `semanticdb-javac/src/main/java`: the Java compiler plugin that creates
+  SemanticDB files.
+- `tests/minimized`: minimized Java source files that reproduce interesting test
+  cases.
+- `tests/unit`: fast running unit tests that are helpful for local edit-and-test
+  workflows.
+- `tests/snapshots`: slow running
+  ["snapshot tests"](https://jestjs.io/docs/en/snapshot-testing) that index a
+  corpus of published Java libraries.
 
-```groovy
-publishing {
-    model {
-        tasks.generatePomFileForSourcegraphPublication {
-            destination = file("$projectDir/pom.xml")
-        }
-    }
-    publications {
-        sourcegraph(MavenPublication) {
-            from components.java
-            def sourceSets = project.sourceSets.main.java.srcDirs
-            pom.withXml {
-                def node = asNode();
-                if (node.get("build").size() == 0) {
-                    node.appendNode("build").with {
-                        if (sourceSets.size() > 0) {
-                            appendNode("sourceDirectory", sourceSets.first())
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-```
+### Helpful commands
 
-3. Run `./gradlew generatePomFileForSourcegraphPublication`
-4. You should now see `pom.xml` at the top of your project directory
+| Command                                          | Where     | Description                                                                      |
+| ------------------------------------------------ | --------- | -------------------------------------------------------------------------------- |
+| `./sbt`                                          | terminal  | Start interactive sbt shell with Java 8. Takes a while to load on the first run. |
+| `unit/test`                                      | sbt shell | Run fast unit tests. Good for edit-and-test workflows.                           |
+| `snapshot/testOnly tests.MinimizedSnapshotSuite` | sbt shell | Runs fast snapshot tests. Indexes a small set of files under `tests/minimized`.  |
+| `snapshot/testOnly tests.LibrarySnapshotSuite`   | sbt shell | Runs slow snapshot tests. Indexes a corpus of external Java libraries.           |
+| `snapshot/test`                                  | sbt shell | Runs all snapshot tests.                                                         |
+| `snapshot/run`                                   | sbt shell | Update snapshot tests. Use this command after you have fixed a bug.              |
 
-For multi-project Gradle projects **_(experimental)_**:
+### Import the project into IntelliJ
 
-1. Modify your `allprojects` block in the root `build.gradle` to include the following:
+It's recommended to use IntelliJ when editing code in this codebase.
 
-```groovy
-allprojects {
-    // ...
+First, install the
+[IntelliJ Community Edition](https://www.jetbrains.com/idea/download/). The
+community edition is
+[open source](https://github.com/JetBrains/intellij-community) and free to use.
 
-    apply plugin: "maven-publish"
+Next, install the IntelliJ Scala plugin.
 
-    afterEvaluate { project ->
-        if (!new File(project.projectDir.toString()+"/build.gradle").exists()) return
-        publishing {
-            model {
-                tasks.generatePomFileForSourcegraphPublication {
-                    destination = file("$projectDir/pom.xml")
-                }
-            }
-            publications {
-                sourcegraph(MavenPublication) {
-                    def projectDirStr = project.projectDir.toString()
-                    def subprojectSet = project.subprojects
-                    def sourceSetsSet = []
-                    if (project.hasProperty("sourceSets.main.java.srcDirs")) {
-                        sourceSetsSet = project.sourceSets.main.java.srcDirs
-                    }
+Run "File > Project From Existing Sources" to import the sbt build into
+IntelliJ.
 
-                    if (!(new File(projectDirStr+"/build.gradle").exists())) return
+### Don't use VS Code/Vim/Sublime Text/Emacs
 
-                    def javaApplied = components.collect{it.getName()}.contains("java")
-                    if (javaApplied) from components.java
-
-                    pom.withXml {
-                        def node = asNode();
-                        if (node.get("build").size() == 0 && javaApplied) {
-                            node.appendNode("build").with {
-                                if (sourceSetsSet.size() > 0) {
-                                    appendNode("sourceDirectory", sourceSetsSet.first())
-                                } else {
-                                    def dirpath = "${projectDirStr}/src/main/java"
-                                    if (new File(dirpath).exists()) appendNode("sourceDirectory", dirpath)
-                                }
-                            }
-                        }
-
-                        if (subprojectSet.size() > 0) {
-                            node.appendNode("modules").with {
-                                for(Project p : subprojectSet) {
-                                    if(new File(p.projectDir.toString()+"/build.gradle").exists()) {
-                                        def path = p.projectDir.toString().substring(projectDirStr.size()+1)
-                                        appendNode("module", path)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-2. Run `./gradlew generatePomFileForSourcegraphPublication`
-3. You should now see a `pom.xml` file for each `build.gradle` throughout the project
-
-### **Step 2**
-Generate an LSIF dump:
-
-```
-<absolute path to lsif-java>/build/install/lsifjava/bin/lsifjava \
-  -projectRoot <project directory> \
-  -out dump.lsif
-```
-
-## Comparison to [Microsoft/lsif-java](https://github.com/Microsoft/lsif-java)
-
-- sourcegraph/lsif-java is ~10x faster
-- sourcegraph/lsif-java supports cross-file hovers/definitions/references (Microsoft/lsif-java does not)
-- sourcegraph/lsif-java uses [Spoon](https://github.com/INRIA/spoon), which is built on [eclipse.jdt.core](https://github.com/eclipse/eclipse.jdt.core)
-- Microsoft/lsif-java uses [eclipse.jdt.ls](https://github.com/eclipse/eclipse.jdt.ls), which is also built on [eclipse.jdt.core](https://github.com/eclipse/eclipse.jdt.core)
-
-See https://github.com/microsoft/lsif-java/issues/61 for the status of collaboration efforts.
-
-## Development
-
-```
-./dev
-```
+It's not recommended to use other editors than IntelliJ at the moment. The
+reason for this is that IntelliJ is the only IDE that properly supports hybrid
+Java/Scala codebases.
