@@ -72,6 +72,18 @@ lazy val plugin = project
       old.withEnabled(false)
     },
     crossPaths := false,
+    protocDescriptorFile := {
+      val dir = semanticdbTargetRoot.in(Compile).value
+      val result = dir / "META-INF" / "protobuf" / "protobuf.descriptor_set_out"
+      result.mkdirs()
+      result
+    },
+    Compile / PB.protocOptions :=
+      Seq(
+        s"--descriptor_set_out=$protocDescriptorFile",
+        "--include_source_info",
+        "--include_imports"
+      ),
     PB.targets.in(Compile) :=
       Seq(PB.gens.java -> (Compile / sourceManaged).value)
   )
