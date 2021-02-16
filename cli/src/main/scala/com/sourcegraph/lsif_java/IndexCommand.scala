@@ -3,6 +3,7 @@ package com.sourcegraph.lsif_java
 import ch.epfl.scala.bsp4j.StatusCode
 import moped.cli.{Application, Command, CommandParser}
 import moped.annotations.{Description, Inline, TrailingArguments}
+import moped.reporters.Diagnostic
 import os.Shellable
 import sun.jvmstat.monitor.event.MonitorStatusChangeEvent
 
@@ -62,24 +63,30 @@ case class IndexCommand(
         )
         1
       case tool :: Nil =>
-        val semanticdb = tool.bloopInstall()
-        if (semanticdb.exitCode != 0)
-          semanticdb.exitCode
+        val bloopInstalled = tool.bloopInstall()
+        if (bloopInstalled.exitCode != 0)
+          bloopInstalled.exitCode
         else {
-          val bloop = BloopClient.create(workspace, app.reporter)
-          bloop.compileAll().getStatusCode match {
-            case StatusCode.ERROR =>
-              app.error("Compilation failed.")
+          BloopFiles.installSemanticdb(this) match {
+            case Nil =>
+              val bloop = BloopClient.create(workspace, app.reporter)
+              bloop.compileAll().getStatusCode match {
+                case StatusCode.ERROR =>
+                  app.error("Compilation failed.")
+                  1
+                case _ =>
+                  val arguments = ListBuffer.empty[String]
+                  arguments += "lsif-semanticdb"
+                  bloop
+                    .semanticdbDirectories()
+                    .foreach { dir =>
+                      arguments += s"--semanticdbDir=$dir"
+                    }
+                  app.process(Shellable(arguments)).call(check = false).exitCode
+              }
+            case errors =>
+              errors.foreach(e => app.reporter.log(Diagnostic.exception(e)))
               1
-            case _ =>
-              val arguments = ListBuffer.empty[String]
-              arguments += "lsif-semanticdb"
-              bloop
-                .semanticdbDirectories()
-                .foreach { dir =>
-                  arguments += s"--semanticdbDir=$dir"
-                }
-              app.process(Shellable(arguments)).call(check = false).exitCode
           }
         }
       case many =>
