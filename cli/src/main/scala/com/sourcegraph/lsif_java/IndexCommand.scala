@@ -4,7 +4,7 @@ import ch.epfl.scala.bsp4j.StatusCode
 import moped.cli.{Application, Command, CommandParser}
 import moped.annotations.{Description, Inline, TrailingArguments}
 import moped.reporters.Diagnostic
-import os.Shellable
+import os.{CommandResult, Shellable}
 import sun.jvmstat.monitor.event.MonitorStatusChangeEvent
 
 import java.nio.file.{Files, Path, Paths}
@@ -63,7 +63,11 @@ case class IndexCommand(
         )
         1
       case tool :: Nil =>
-        val bloopInstalled = tool.bloopInstall()
+        val bloopInstalled =
+          if (this.bloopInstalled)
+            CommandResult(0, Nil)
+          else
+            tool.bloopInstall()
         if (bloopInstalled.exitCode != 0)
           bloopInstalled.exitCode
         else {
