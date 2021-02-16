@@ -1,4 +1,5 @@
 def scala213 = "2.13.4"
+def scala212 = "2.12.12"
 def scalametaVersion = "4.4.8"
 
 inThisBuild(
@@ -76,14 +77,33 @@ lazy val plugin = project
       Seq(PB.gens.java -> (Compile / sourceManaged).value)
   )
 
+lazy val V =
+  new {
+    val bloop = "1.4.7"
+    val bsp = "2.0.0-M13"
+  }
+
 lazy val cli = project
   .in(file("cli"))
   .settings(
     moduleName := "lsif-java",
+    scalaVersion := scala212,
+    scalacOptions := List("-Ywarn-unused-import"),
     mainClass.in(Compile) := Some("com.sourcegraph.lsif_java.LsifJava"),
-    buildInfoKeys := Seq[BuildInfoKey](version),
+    buildInfoKeys :=
+      Seq[BuildInfoKey](
+        version,
+        "bloopVersion" -> V.bloop,
+        "bspVersion" -> V.bsp
+      ),
     buildInfoPackage := "com.sourcegraph.lsif_java",
-    libraryDependencies ++= List("org.scalameta" %% "moped" % "0.1.9")
+    libraryDependencies ++=
+      List(
+        "org.scalameta" %% "moped" % "0.1.9",
+        "ch.epfl.scala" % "bsp4j" % V.bsp,
+        "ch.epfl.scala" %% "bloop-config" % V.bloop,
+        "ch.epfl.scala" %% "bloop-launcher" % V.bloop
+      )
   )
   .enablePlugins(NativeImagePlugin, BuildInfoPlugin)
 

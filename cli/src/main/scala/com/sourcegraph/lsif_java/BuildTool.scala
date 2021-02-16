@@ -1,8 +1,11 @@
 package com.sourcegraph.lsif_java
 
-abstract class BuildTool(index: IndexCommand) {
+abstract class BuildTool(val name: String, index: IndexCommand) {
+
   def exists(): Boolean
-  def generateSemanticdb(): os.CommandResult
+
+  def bloopInstall(): os.CommandResult
+
   final def generateLsif(): os.CommandResult = {
     index
       .app
@@ -12,4 +15,10 @@ abstract class BuildTool(index: IndexCommand) {
       )
       .call(check = true)
   }
+
+}
+
+object BuildTool {
+  def all(index: IndexCommand): List[BuildTool] =
+    List(new GradleBuildTool(index))
 }
