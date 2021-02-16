@@ -52,7 +52,7 @@ public abstract class AsyncEpoxyController extends EpoxyController {
    * Individually control whether model building and diffing are done async or on the main thread.
    */
   public AsyncEpoxyController(boolean enableAsyncModelBuilding, boolean enableAsyncDiffing) {
-//       ^^^^^^ definition com/airbnb/epoxy/AsyncEpoxyController#`<init>`(+2).
+//       ^^^^^^ definition com/airbnb/epoxy/AsyncEpoxyController#`<init>`(+2). <Individually ... thread.>
 //                                    ^^^^^^^^^^^^^^^^^^^^^^^^ definition local1
 //                                                                      ^^^^^^^^^^^^^^^^^^ definition local2
     super(getHandler(enableAsyncModelBuilding), getHandler(enableAsyncDiffing));
