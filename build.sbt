@@ -76,6 +76,17 @@ lazy val plugin = project
       Seq(PB.gens.java -> (Compile / sourceManaged).value)
   )
 
+lazy val cli = project
+  .in(file("cli"))
+  .settings(
+    moduleName := "lsif-java",
+    mainClass.in(Compile) := Some("com.sourcegraph.lsif_java.LsifJava"),
+    buildInfoKeys := Seq[BuildInfoKey](version),
+    buildInfoPackage := "com.sourcegraph.lsif_java",
+    libraryDependencies ++= List("org.scalameta" %% "moped" % "0.1.9")
+  )
+  .enablePlugins(NativeImagePlugin, BuildInfoPlugin)
+
 lazy val minimized = project
   .in(file("tests/minimized"))
   .settings(
@@ -142,7 +153,7 @@ lazy val snapshots = project
 lazy val bench = project
   .in(file("tests/benchmarks"))
   .settings(
-    moduleName := "lsif-java-bench",
+    moduleName := "lsif-java-benchmarks",
     fork.in(run) := true,
     skip.in(publish) := true
   )
