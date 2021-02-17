@@ -17,18 +17,18 @@ object BloopFiles {
 
   def installSemanticdb(index: IndexCommand): List[Throwable] = {
     val errors = ListBuffer.empty[Throwable]
+    val semanticdbDependency = Dependency(
+      Module(
+        Organization("com.sourcegraph"),
+        ModuleName("semanticdb-javac"),
+        Map.empty
+      ),
+      index.semanticdbVersion.getOrElse(BuildInfo.bloopVersion)
+    )
+
     val semanticdbJars: List[Path] =
       Fetch[Task](Cache.default)
-        .addDependencies(
-          Dependency(
-            Module(
-              Organization("com.sourcegraph"),
-              ModuleName("semanticdb-javac"),
-              Map.empty
-            ),
-            "0.1.0"
-          )
-        )
+        .addDependencies(semanticdbDependency)
         .run()
         .map(_.toPath)
         .toList
@@ -78,9 +78,15 @@ object BloopFiles {
       val newConfig = config.copy(project =
         config.project.copy(classpath = classpath, java = newJavaConfig)
       )
-      bloop.config.write(newConfig, path)
+      if (newConfig != config) {
+        bloop.config.write(newConfig, path)
+      }
     }
     errors.toList
+  }
+
+  def isIgnoredOption(o: String): Boolean = {
+    o.startsWith("-Xplugin:semanticdb") || o == "-Werror"
   }
 
   private def patchOptions(
@@ -97,7 +103,7 @@ object BloopFiles {
         val newPath = classpath.mkString(File.pathSeparator)
         "-processorpath" :: newPath :: patchOptions(tail, extraJars)
       case head :: tail =>
-        if (head.startsWith("-Xplugin:semanticdb"))
+        if (isIgnoredOption(head))
           patchOptions(tail, extraJars)
         else
           head :: patchOptions(tail, extraJars)

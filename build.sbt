@@ -59,7 +59,7 @@ lazy val testSettings = List(
       "org.scalameta" %% "munit" % "0.7.10",
       "org.scalameta" %% "scalameta" % scalametaVersion,
       "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.0",
-      "io.get-coursier" %% "coursier" % "2.0.8",
+      "io.get-coursier" %% "coursier" % V.coursier,
       "com.lihaoyi" %% "pprint" % "0.6.1"
     )
 )
@@ -79,6 +79,7 @@ lazy val plugin = project
 
 lazy val V =
   new {
+    val coursier = "2.0.8"
     val bloop = "1.4.7"
     val bsp = "2.0.0-M13"
   }
@@ -93,6 +94,7 @@ lazy val cli = project
     buildInfoKeys :=
       Seq[BuildInfoKey](
         version,
+        scalaVersion,
         "bloopVersion" -> V.bloop,
         "bspVersion" -> V.bsp
       ),
@@ -100,6 +102,7 @@ lazy val cli = project
     libraryDependencies ++=
       List(
         "org.scalameta" %% "moped" % "0.1.9",
+        "io.get-coursier" %% "coursier" % V.coursier,
         "ch.epfl.scala" % "bsp4j" % V.bsp,
         "ch.epfl.scala" %% "bloop-config" % V.bloop,
         "ch.epfl.scala" %% "bloop-launcher" % V.bloop

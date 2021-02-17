@@ -1,6 +1,6 @@
 package com.sourcegraph.lsif_java
 
-import os.{CommandResult, Shellable}
+import os.{CommandResult, ProcessOutput, Shellable}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -24,18 +24,16 @@ class GradleBuildTool(index: IndexCommand) extends BuildTool("Gradle", index) {
   }
 
   override def bloopInstall(): CommandResult = {
-    withInitScript { initScript =>
-      index
-        .app
-        .process(
-          gradleWrapper.toString,
-          "--console=plain",
-          "--init-script",
-          initScript.toString,
-          "bloopInstall"
-        )
-        .call(check = false)
-    }
+    index
+      .app
+      .process(
+        gradleWrapper.toString,
+        "--console=plain",
+        "--init-script",
+        initScript().toString,
+        "bloopInstall"
+      )
+      .call(check = false, stdout = os.Inherit, stderr = os.Inherit)
   }
 
   val annotationProcessor =
@@ -48,7 +46,7 @@ class GradleBuildTool(index: IndexCommand) extends BuildTool("Gradle", index) {
     index.textFlag
   ).filter(_.nonEmpty).mkString(" ")
 
-  private def withInitScript[T](fn: Path => T): T = {
+  private def initScript(): Path = {
     val tmp = Files.createTempFile("lsif-java", "init-script.gradle")
     val gradleBloop =
       s"ch.epfl.scala:gradle-bloop_2.12:${BuildInfo.bloopVersion}"
@@ -67,8 +65,7 @@ class GradleBuildTool(index: IndexCommand) extends BuildTool("Gradle", index) {
          |}
     """.stripMargin
     Files.write(tmp, script.getBytes(StandardCharsets.UTF_8))
-    try fn(tmp)
-    finally Files.deleteIfExists(tmp)
+    tmp
   }
 
 }

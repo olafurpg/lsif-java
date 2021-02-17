@@ -5,7 +5,6 @@ import moped.cli.{Application, Command, CommandParser}
 import moped.annotations.{Description, Inline, TrailingArguments}
 import moped.reporters.Diagnostic
 import os.{CommandResult, Shellable}
-import sun.jvmstat.monitor.event.MonitorStatusChangeEvent
 
 import java.nio.file.{Files, Path, Paths}
 import scala.collection.mutable.ListBuffer
@@ -81,12 +80,21 @@ case class IndexCommand(
                 case _ =>
                   val arguments = ListBuffer.empty[String]
                   arguments += "lsif-semanticdb"
-                  bloop
-                    .semanticdbDirectories()
-                    .foreach { dir =>
+                  val dirs = bloop.semanticdbDirectories(this)
+                  if (dirs.isEmpty) {
+                    app.error(
+                      "no SemanticDB directories. To fix this problem, make sure that your project exported"
+                    )
+                    1
+                  } else {
+                    dirs.foreach { dir =>
                       arguments += s"--semanticdbDir=$dir"
                     }
-                  app.process(Shellable(arguments)).call(check = false).exitCode
+                    app
+                      .process(Shellable(arguments))
+                      .call(check = false)
+                      .exitCode
+                  }
               }
             case errors =>
               errors.foreach(e => app.reporter.log(Diagnostic.exception(e)))
