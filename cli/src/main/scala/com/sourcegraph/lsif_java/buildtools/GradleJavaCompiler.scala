@@ -22,7 +22,7 @@ case class GradleJavaCompiler(languageVersion: String, javacPath: Path) {
   def createForwardingToolchain(
       index: IndexCommand,
       tmp: Path,
-      processorPath: Path
+      pluginPath: Path
   ): Path = {
     val home = tmp.resolve(s"1.$languageVersion")
     val javac = Embedded
@@ -30,13 +30,13 @@ case class GradleJavaCompiler(languageVersion: String, javacPath: Path) {
     val agent = Embedded.agentJar(tmp)
     val debugPath = GradleJavaCompiler.debugPath(tmp)
 
-    createBinaries(home, javac, agent, index, processorPath, debugPath)
+    createBinaries(home, javac, agent, index, pluginPath, debugPath)
     createBinaries(
       home.resolve("Contents").resolve("Home"),
       javac,
       agent,
       index,
-      processorPath,
+      pluginPath,
       debugPath
     ) // for macOS
     home
@@ -47,7 +47,7 @@ case class GradleJavaCompiler(languageVersion: String, javacPath: Path) {
       javac: Path,
       agent: Path,
       index: IndexCommand,
-      processorPath: Path,
+      pluginPath: Path,
       debugPath: Path
   ): Unit = {
     Files.createDirectories(dir.resolve("bin"))
@@ -55,7 +55,7 @@ case class GradleJavaCompiler(languageVersion: String, javacPath: Path) {
     val javaCommand = ListBuffer[String](
       javaBinary.toString,
       s"-javaagent:$agent",
-      s"-Dsemanticdb.processorpath=${processorPath}",
+      s"-Dsemanticdb.pluginpath=${pluginPath}",
       s"-Dsemanticdb.targetroot=${index.targetrootAbsolutePath}",
       s"-Dsemanticdb.sourceroot=${index.sourceroot}"
     )

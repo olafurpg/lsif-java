@@ -5,11 +5,9 @@ import net.bytebuddy.asm.Advice;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -19,6 +17,7 @@ import java.util.NoSuchElementException;
 import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
+/** Java agent that injects SemanticDB into the Java compilation process. */
 public class SemanticdbAgent {
 
   public static void premain(String agentArgs, Instrumentation inst) {
@@ -28,18 +27,27 @@ public class SemanticdbAgent {
                 .or(named("tests.GradleOptionsBuilder")))
         .transform(
             new AgentBuilder.Transformer.ForAdvice()
-                .advice(named("build"), SemanticdbAdvice.class.getName()))
+                .advice(named("build"), GradleAdvice.class.getName()))
         .installOn(inst);
   }
 
   @SuppressWarnings("all")
-  public static class SemanticdbAdvice {
-    @Advice.OnMethodExit
-    public static void executeEnter(
-        @Advice.Return(readOnly = false, typing = DYNAMIC) List<String> options) {
+  public static class GradleAdvice {
 
-      String PROCESSORPATH = System.getProperty("semanticdb.processorpath");
-      if (PROCESSORPATH == null) throw new NoSuchElementException("-Dsemanticdb.processorpath");
+    /**
+     * The bytecode of this method gets injected at the end of the following method in Gradle:
+     *
+     * <p>https://github.com/gradle/gradle/blob/2389365c6e0f29cb84b4727a793fe7a7008c9fc7/subprojects/language-java/src/main/java/org/gradle/api/internal/tasks/compile/JavaCompilerArgumentsBuilder.java#L78
+     *
+     * @param arguments The Java compiler that Gradle intends to use. This method updates the
+     *     options to include "-Xplugin:semanticdb".
+     */
+    @Advice.OnMethodExit
+    public static void build(
+        @Advice.Return(readOnly = false, typing = DYNAMIC) List<String> arguments) {
+
+      String PLUGINPATH = System.getProperty("semanticdb.pluginpath");
+      if (PLUGINPATH == null) throw new NoSuchElementException("-Dsemanticdb.pluginpath");
       String SOURCEROOT = System.getProperty("semanticdb.sourceroot");
       if (SOURCEROOT == null) throw new NoSuchElementException("-Dsemanticdb.sourceroot");
       String TARGETROOT = System.getProperty("semanticdb.targetroot");
@@ -49,14 +57,14 @@ public class SemanticdbAgent {
       String previousOption = "";
 
       ArrayList<String> newOptions = new ArrayList<>();
-      for (String option : options) {
+      for (String option : arguments) {
         switch (previousOption) {
           case "-processorpath":
           case "-processor-path":
           case "-classpath":
           case "-class-path":
             isProcessorpathUpdated = true;
-            newOptions.add(PROCESSORPATH + File.pathSeparator + option);
+            newOptions.add(PLUGINPATH + File.pathSeparator + option);
             break;
           default:
             newOptions.add(option);
@@ -66,7 +74,7 @@ public class SemanticdbAgent {
       }
       if (!isProcessorpathUpdated) {
         newOptions.add("-classpath");
-        newOptions.add(PROCESSORPATH);
+        newOptions.add(PLUGINPATH);
       }
       newOptions.add(
           String.format(
@@ -79,13 +87,13 @@ public class SemanticdbAgent {
                 Files.newOutputStream(
                     Paths.get(debugPath), StandardOpenOption.APPEND, StandardOpenOption.CREATE))) {
           fos.println("Java Home: " + System.getProperty("java.home"));
-          fos.println("Old Options: " + options);
+          fos.println("Old Options: " + arguments);
           fos.println("New Options: " + newOptions);
         } catch (IOException e) {
         }
       }
 
-      options = newOptions;
+      arguments = newOptions;
     }
   }
 }

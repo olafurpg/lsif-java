@@ -10,7 +10,7 @@ import munit.TestOptions
 class GradleOptionsBuilderSuite extends FunSuite {
   val targetroot = System.getProperty("semanticdb.targetroot")
   val sourceroot = System.getProperty("semanticdb.sourceroot")
-  val processorpath = System.getProperty("semanticdb.processorpath")
+  val pluginpath = System.getProperty("semanticdb.pluginpath")
   val Xplugin =
     s"-Xplugin:semanticdb -sourceroot:$sourceroot -targetroot:$targetroot"
   def check(
@@ -27,7 +27,7 @@ class GradleOptionsBuilderSuite extends FunSuite {
   check(
     "basic",
     List("-Arandom"),
-    List("-Arandom", "-classpath", processorpath, Xplugin)
+    List("-Arandom", "-classpath", pluginpath, Xplugin)
   )
 
   check(
@@ -35,7 +35,7 @@ class GradleOptionsBuilderSuite extends FunSuite {
     List("-classpath", "a.jar"),
     List(
       "-classpath",
-      List(processorpath, "a.jar").mkString(File.pathSeparator),
+      List(pluginpath, "a.jar").mkString(File.pathSeparator),
       Xplugin
     )
   )
@@ -45,7 +45,7 @@ class GradleOptionsBuilderSuite extends FunSuite {
     List("-processorpath", "a.jar"),
     List(
       "-processorpath",
-      List(processorpath, "a.jar").mkString(File.pathSeparator),
+      List(pluginpath, "a.jar").mkString(File.pathSeparator),
       Xplugin
     )
   )
@@ -55,9 +55,9 @@ class GradleOptionsBuilderSuite extends FunSuite {
     List("-classpath", "a.jar", "-processorpath", "b.jar"),
     List(
       "-classpath",
-      List(processorpath, "a.jar").mkString(File.pathSeparator),
+      List(pluginpath, "a.jar").mkString(File.pathSeparator),
       "-processorpath",
-      List(processorpath, "b.jar").mkString(File.pathSeparator),
+      List(pluginpath, "b.jar").mkString(File.pathSeparator),
       Xplugin
     )
   )

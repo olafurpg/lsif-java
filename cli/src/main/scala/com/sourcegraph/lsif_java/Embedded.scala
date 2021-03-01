@@ -13,18 +13,18 @@ object Embedded {
 
   def customJavac(sourceroot: Path, targetroot: Path, tmp: Path): Path = {
     val javac = tmp.resolve("javac")
-    val processorpath = Embedded.semanticdbJar(tmp)
+    val pluginpath = Embedded.semanticdbJar(tmp)
     val oldArguments = tmp.resolve("javac_oldarguments")
     val newArguments = tmp.resolve("javac_newarguments")
     val launcherArgs = tmp.resolve("javac_launcherarguments")
     val injectSemanticdbArguments = List[String](
       "java",
-      s"-Dsemanticdb.processorpath=$processorpath",
+      s"-Dsemanticdb.pluginpath=$pluginpath",
       s"-Dsemanticdb.sourceroot=$sourceroot",
       s"-Dsemanticdb.targetroot=$targetroot",
       s"-Dsemanticdb.output=$newArguments",
       s"-Dsemanticdb.old-output=$oldArguments",
-      s"-classpath $processorpath",
+      s"-classpath $pluginpath",
       "com.sourcegraph.semanticdb_javac.InjectSemanticdbOptions",
       """"$@""""
     ).mkString(" ")

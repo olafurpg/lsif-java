@@ -210,7 +210,7 @@ lazy val buildTools = project
     javaOptions.in(Test) ++=
       List(
         s"-javaagent:${Keys.`package`.in(agent, Compile).value}",
-        s"-Dsemanticdb.processorpath=${Keys.`package`.in(plugin, Compile).value}",
+        s"-Dsemanticdb.pluginpath=${Keys.`package`.in(plugin, Compile).value}",
         s"-Dsemanticdb.sourceroot=${baseDirectory.in(ThisBuild).value}",
         s"-Dsemanticdb.targetroot=${target.in(agent, Compile).value / "semanticdb-targetroot"}"
       )

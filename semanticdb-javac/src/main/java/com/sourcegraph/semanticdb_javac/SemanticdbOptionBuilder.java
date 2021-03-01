@@ -12,7 +12,7 @@ public class SemanticdbOptionBuilder {
   private final ArrayList<String> result = new ArrayList<>();
   private boolean isClasspathUpdated = false;
 
-  private static final String PROCESSORPATH = System.getProperty("semanticdb.processorpath", "");
+  private static final String PLUGINPATH = System.getProperty("semanticdb.pluginpath", "");
   private static final String SOURCEROOT = System.getProperty("semanticdb.sourceroot", "");
   private static final String TARGETROOT = System.getProperty("semanticdb.targetroot", "");
   private static final String OUTPUT = System.getProperty("semanticdb.output", "");
@@ -23,7 +23,7 @@ public class SemanticdbOptionBuilder {
     arg = unwrapQuote(arg);
     if ("-processorpath".equals(previousArg) || "-classpath".equals(previousArg)) {
       isClasspathUpdated = true;
-      result.add(PROCESSORPATH + File.pathSeparator + arg);
+      result.add(PLUGINPATH + File.pathSeparator + arg);
     } else if (arg.startsWith("-J")) {
       // Ignore Java launcher arguments.
     } else if (arg.startsWith("-Xplugin:ErrorProne")) {
@@ -61,7 +61,7 @@ public class SemanticdbOptionBuilder {
   public ArrayList<String> finalResult() {
     if (!isClasspathUpdated) {
       result.add("-classpath");
-      result.add(PROCESSORPATH);
+      result.add(PLUGINPATH);
     }
     result.add(xpluginOption());
     ArrayList<String> finalResult = new ArrayList<>();
