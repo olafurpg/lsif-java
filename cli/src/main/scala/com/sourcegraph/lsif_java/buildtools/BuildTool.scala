@@ -2,21 +2,11 @@ package com.sourcegraph.lsif_java.buildtools
 
 import com.sourcegraph.lsif_java.IndexCommand
 
-abstract class BuildTool(val name: String, index: IndexCommand) {
+abstract class BuildTool(val name: String) {
 
-  def exists(): Boolean
+  def usedInCurrentDirectory(): Boolean
 
   def generateSemanticdb(): os.CommandResult
-
-  final def generateLsif(): os.CommandResult = {
-    index
-      .app
-      .process(
-        "lsif-semanticdb",
-        s"--semanticdbDir=${index.targetrootAbsolutePath}"
-      )
-      .call(check = true)
-  }
 
 }
 

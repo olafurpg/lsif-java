@@ -10,11 +10,13 @@ import com.sourcegraph.lsif_java.Embedded
 import com.sourcegraph.lsif_java.IndexCommand
 
 case class GradleJavaToolchains(
-    toolchains: List[GradleJavaToolchain],
+    toolchains: List[GradleJavaCompiler],
     index: IndexCommand,
     tmp: Path
 ) {
+
   def isEmpty: Boolean = toolchains.isEmpty
+
   def executableJavacPath(): Option[Path] = {
     if (toolchains.isEmpty) {
       Some(
@@ -25,6 +27,7 @@ case class GradleJavaToolchains(
       None
     }
   }
+
   def paths(): String = {
     val processorPath = Embedded.semanticdbJar(tmp)
     toolchains
@@ -35,6 +38,13 @@ case class GradleJavaToolchains(
 }
 
 object GradleJavaToolchains {
+
+  /**
+   * Extracts the "Java toolchains" that are used in this Gradle workspace.
+   *
+   * @see
+   *   https://docs.gradle.org/6.7/userguide/toolchains.html
+   */
   def fromWorkspace(
       index: IndexCommand,
       gradleCommand: String,
@@ -69,12 +79,12 @@ object GradleJavaToolchains {
           |""".stripMargin
     Files.write(scriptPath, script.getBytes(StandardCharsets.UTF_8))
     index.process(gradleCommand, "--init-script", scriptPath.toString, taskName)
-    val toolchains: List[GradleJavaToolchain] =
+    val toolchains: List[GradleJavaCompiler] =
       if (Files.isRegularFile(toolchainsPath)) {
         Files
           .readAllLines(toolchainsPath)
           .asScala
-          .flatMap(GradleJavaToolchain.fromLine)
+          .flatMap(GradleJavaCompiler.fromLine)
           .toList
           .distinct
       } else {

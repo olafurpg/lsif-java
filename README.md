@@ -84,11 +84,14 @@ The following sections provide tips on how to contribute to this codebase.
 
 ### System dependencies
 
-* `java`: any version should work
-* `git`: any version should work
-* `lsif-semanticdb`: `go get github.com/sourcegraph/lsif-semanticdb/cmd/lsif-semanticdb`
-* `gradle`: `brew install gradle`, or see [general installation guide](https://gradle.org/install/).
-* `mvn`: `brew install maven`, or see [general installation guide](https://www.baeldung.com/install-maven-on-windows-linux-mac).
+- `java`: any version should work
+- `git`: any version should work
+- `lsif-semanticdb`:
+  `go get github.com/sourcegraph/lsif-semanticdb/cmd/lsif-semanticdb`
+- `gradle`: `brew install gradle`, or see
+  [general installation guide](https://gradle.org/install/).
+- `mvn`: `brew install maven`, or see
+  [general installation guide](https://www.baeldung.com/install-maven-on-windows-linux-mac).
 
 ### Project structure
 
@@ -119,6 +122,7 @@ These are the main components of the project.
 | `snapshots/testOnly tests.LibrarySnapshotSuite`                     | sbt      | Runs slow snapshot tests. Indexes a corpus of external Java libraries.              |
 | `snapshots/test`                                                    | sbt      | Runs all snapshot tests.                                                            |
 | `snapshots/run`                                                     | sbt      | Update snapshot tests. Use this command after you have fixed a bug.                 |
+| `cli/run --cwd DIRECTORY`                                           | sbt      | Run `lsif-java` command-line tool against a given Gradle/Maven build.               |
 | `fixAll`                                                            | sbt      | Run Scalafmt, Scalafix and Javafmt on all sources. Run this before opening a PR.    |
 
 ### Import the project into IntelliJ

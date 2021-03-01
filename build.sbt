@@ -233,7 +233,7 @@ lazy val snapshots = project
 lazy val bench = project
   .in(file("tests/benchmarks"))
   .settings(
-    moduleName := "lsif-java-benchmarks",
+    moduleName := "lsif-java-bench",
     fork.in(run) := true,
     skip.in(publish) := true
   )

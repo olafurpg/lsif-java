@@ -65,7 +65,7 @@ case class IndexCommand(
   override def run(): Int = {
     val allBuildTools = BuildTool.all(this)
 
-    allBuildTools.filter(_.exists()) match {
+    allBuildTools.filter(_.usedInCurrentDirectory()) match {
       case Nil =>
         if (Files.isDirectory(workspace)) {
           val buildToolNames = allBuildTools.map(_.name).mkString(", ")
@@ -92,12 +92,10 @@ case class IndexCommand(
         if (!Files.isDirectory(targetrootAbsolutePath)) {
           generateSemanticdb.exitCode
         } else {
-          val generateLsif = app
-            .process(
-              "lsif-semanticdb",
-              s"--semanticdbDir=$targetrootAbsolutePath"
-            )
-            .call(check = false, stdout = os.Inherit, stderr = os.Inherit)
+          val generateLsif = process(
+            "lsif-semanticdb",
+            s"--semanticdbDir=$targetrootAbsolutePath"
+          )
           generateSemanticdb.exitCode + generateLsif.exitCode
         }
       case many =>

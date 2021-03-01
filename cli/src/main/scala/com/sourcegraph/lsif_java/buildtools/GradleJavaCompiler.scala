@@ -11,18 +11,24 @@ import scala.collection.mutable.ListBuffer
 import com.sourcegraph.lsif_java.Embedded
 import com.sourcegraph.lsif_java.IndexCommand
 
-case class GradleJavaToolchain(version: String, javacPath: Path) {
+/**
+ * Metadata about the Java compiler that is used by a Gradle build.
+ *
+ * @see
+ *   https://docs.gradle.org/current/javadoc/org/gradle/jvm/toolchain/JavaCompiler.html
+ */
+case class GradleJavaCompiler(languageVersion: String, javacPath: Path) {
 
   def createForwardingToolchain(
       index: IndexCommand,
       tmp: Path,
       processorPath: Path
   ): Path = {
-    val home = tmp.resolve(s"1.$version")
+    val home = tmp.resolve(s"1.$languageVersion")
     val javac = Embedded
       .customJavac(index.sourceroot, index.targetrootAbsolutePath, tmp)
     val agent = Embedded.agentJar(tmp)
-    val debugPath = GradleJavaToolchain.debugPath(tmp)
+    val debugPath = GradleJavaCompiler.debugPath(tmp)
 
     createBinaries(home, javac, agent, index, processorPath, debugPath)
     createBinaries(
@@ -78,14 +84,27 @@ case class GradleJavaToolchain(version: String, javacPath: Path) {
       .setExecutable(true)
   }
 }
+object GradleJavaCompiler {
 
-object GradleJavaToolchain {
+  /**
+   * Path to a file that is used to log debugging information from the
+   * SemanticDB Java Agent.
+   */
   def debugPath(tmp: Path): Path = tmp.resolve("debugpath.txt")
-  def fromLine(line: String): Option[GradleJavaToolchain] =
+
+  /**
+   * Parses a single space-separated line into a GradleJavaCompiler instance.
+   *
+   * Example input: "8 /path/javac"
+   *
+   * Example output: `Some(GradleJavaCompiler("8", * /path/javac))`
+   */
+  def fromLine(line: String): Option[GradleJavaCompiler] =
     line.split(' ') match {
       case Array(version, path) =>
-        Some(GradleJavaToolchain(version, Paths.get(path)))
+        Some(GradleJavaCompiler(version, Paths.get(path)))
       case _ =>
         None
     }
+
 }

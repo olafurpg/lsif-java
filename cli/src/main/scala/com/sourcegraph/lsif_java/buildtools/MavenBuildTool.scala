@@ -7,12 +7,12 @@ import com.sourcegraph.lsif_java.IndexCommand
 import os.CommandResult
 import os.Inherit
 
-class MavenBuildTool(index: IndexCommand) extends BuildTool("Maven", index) {
-  override def exists(): Boolean =
+class MavenBuildTool(index: IndexCommand) extends BuildTool("Maven") {
+  override def usedInCurrentDirectory(): Boolean =
     Files.isRegularFile(index.workspace.resolve("pom.xml"))
 
   override def generateSemanticdb(): CommandResult = {
-    TemporaryFiles.withTemporaryDirectory(index.cleanup) { tmp =>
+    TemporaryFiles.withDirectory(index.cleanup) { tmp =>
       val mvnw = index.workspace.resolve("mvnw")
       val mavenScript =
         if (Files.isRegularFile(mvnw))

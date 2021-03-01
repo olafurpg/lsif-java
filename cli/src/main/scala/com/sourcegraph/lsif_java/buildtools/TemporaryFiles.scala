@@ -6,7 +6,7 @@ import java.nio.file.Path
 import com.sourcegraph.lsif_java.DeleteVisitor
 
 object TemporaryFiles {
-  def withTemporaryDirectory[T](cleanup: Boolean)(fn: Path => T): T = {
+  def withDirectory[T](cleanup: Boolean)(fn: Path => T): T = {
     val tmp = Files.createTempDirectory("lsif-java")
     try fn(tmp)
     finally {

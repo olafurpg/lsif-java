@@ -8,9 +8,9 @@ import scala.util.Properties
 import com.sourcegraph.lsif_java.IndexCommand
 import os.CommandResult
 
-class GradleBuildTool(index: IndexCommand) extends BuildTool("Gradle", index) {
+class GradleBuildTool(index: IndexCommand) extends BuildTool("Gradle") {
 
-  override def exists(): Boolean = {
+  override def usedInCurrentDirectory(): Boolean = {
     Files.isRegularFile(index.workspace.resolve("settings.gradle")) ||
     Files.isRegularFile(index.workspace.resolve("gradlew")) ||
     Files.isRegularFile(index.workspace.resolve("build.gradle")) ||
@@ -18,20 +18,20 @@ class GradleBuildTool(index: IndexCommand) extends BuildTool("Gradle", index) {
   }
 
   override def generateSemanticdb(): CommandResult = {
-    TemporaryFiles.withTemporaryDirectory(index.cleanup) { tmp =>
-      val gradleWrapper: Path = index
-        .workspace
-        .resolve(
-          if (Properties.isWin)
-            "gradlew.bat"
-          else
-            "gradlew"
-        )
-      val gradleCommand: String =
-        if (Files.isRegularFile(gradleWrapper))
-          gradleWrapper.toString
+    val gradleWrapper: Path = index
+      .workspace
+      .resolve(
+        if (Properties.isWin)
+          "gradlew.bat"
         else
-          "gradle"
+          "gradlew"
+      )
+    val gradleCommand: String =
+      if (Files.isRegularFile(gradleWrapper))
+        gradleWrapper.toString
+      else
+        "gradle"
+    TemporaryFiles.withDirectory(index.cleanup) { tmp =>
       val toolchains = GradleJavaToolchains
         .fromWorkspace(index, gradleCommand, tmp)
       val script = initScript(toolchains, tmp).toString
@@ -52,12 +52,12 @@ class GradleBuildTool(index: IndexCommand) extends BuildTool("Gradle", index) {
   }
 
   private def printDebugLogs(tmp: Path): Unit = {
-    val path = GradleJavaToolchain.debugPath(tmp)
+    val path = GradleJavaCompiler.debugPath(tmp)
     if (index.verbose && Files.isRegularFile(path)) {
       Files
         .readAllLines(path)
         .forEach { line =>
-          index.app.out.println(line)
+          index.app.info(line)
         }
     }
   }
