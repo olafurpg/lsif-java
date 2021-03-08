@@ -13,4 +13,9 @@ public class LsifDocument {
     this.path = path;
     this.id = -1;
   }
+
+  public LsifDocument(Path path, Semanticdb.TextDocument semanticdb) {
+    this(path);
+    this.semanticdb = semanticdb;
+  }
 }

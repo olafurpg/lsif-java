@@ -1,9 +1,14 @@
 package com.sourcegraph.lsif_java
 
-import java.nio.file.Path
+import com.sourcegraph.lsif_semanticdb.{
+  LsifSemanticdb,
+  LsifSemanticdbOptions,
+  LsifToolInfo
+}
 
+import scala.jdk.CollectionConverters._
+import java.nio.file.{Path, Paths}
 import scala.collection.mutable.ListBuffer
-
 import moped.annotations.CommandName
 import moped.annotations.Description
 import moped.annotations.ExampleUsage
@@ -23,29 +28,28 @@ import os.Shellable
 )
 @CommandName("index-semanticdb")
 final case class IndexSemanticdbCommand(
-    @Description(
-      "The name of the output file. Defaults to 'dump.lsif'"
-    ) out: Option[Path] = None,
+    @Description("The name of the output file.") output: Path = Paths
+      .get("dump.lsif"),
     @Description(
       "SemanticDB file paths or directories that contain SemanticDB files."
     )
-    @PositionalArguments() directories: List[Path] = Nil,
+    @PositionalArguments() targetroots: List[Path] = Nil,
     @Inline() app: Application = Application.default
 ) extends Command {
+  def sourceroot: Path = app.env.workingDirectory
   def run(): Int = {
-    val arguments = ListBuffer.empty[String]
-    arguments += "lsif-semanticdb"
-    out.foreach { dir =>
-      arguments += s"--out=$dir"
-    }
-    directories.foreach { dir =>
-      arguments += s"--semanticdbDir=$dir"
-    }
-    app.info(arguments.mkString(" "))
-    app
-      .process(Shellable(arguments.toList))
-      .call(check = false, stderr = Inherit, stdout = Inherit)
-      .exitCode
+    val reporter = new MopedLsifReporter(app)
+    val options =
+      new LsifSemanticdbOptions(
+        targetroots.asJava,
+        output,
+        sourceroot,
+        reporter,
+        new LsifToolInfo("lsif-java", BuildInfo.version, Array()),
+        "java"
+      )
+    LsifSemanticdb.run(options)
+    app.reporter.exitCode()
   }
 }
 

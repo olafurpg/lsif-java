@@ -174,7 +174,7 @@ lazy val cli = project
     nativeImageOutput := target.in(NativeImage).value / "lsif-java"
   )
   .enablePlugins(NativeImagePlugin, BuildInfoPlugin)
-  .dependsOn(semanticdb)
+  .dependsOn(lsif)
 
 def minimizedSourceDirectory =
   file("tests/minimized/src/main/java").getAbsoluteFile

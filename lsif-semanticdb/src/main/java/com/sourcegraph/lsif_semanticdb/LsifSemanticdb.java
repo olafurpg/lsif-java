@@ -31,10 +31,11 @@ public class LsifSemanticdb {
     Stream<LsifDocument> files = SemanticdbWalker.findSemanticdbFiles(options).parallelStream();
     if (options.reporter.hasErrors()) return;
 
-    files.forEach(this::parseTextDocuments);
+    files = files.flatMap(this::parseTextDocument);
     if (options.reporter.hasErrors()) return;
 
     emitDocuments(files, projectId);
+    if (options.reporter.hasErrors()) return;
 
     writer.build();
   }
@@ -44,13 +45,15 @@ public class LsifSemanticdb {
     writer.emitContains(projectId, ids);
   }
 
-  private void parseTextDocuments(LsifDocument doc) {
+  private Stream<LsifDocument> parseTextDocument(LsifDocument doc) {
     try {
-      Semanticdb.TextDocuments.parseFrom(Files.readAllBytes(doc.path)).getDocumentsList().stream()
+      return Semanticdb.TextDocuments.parseFrom(Files.readAllBytes(doc.path)).getDocumentsList()
+          .stream()
           .filter(sdb -> !sdb.getOccurrencesList().isEmpty())
-          .forEach(sdb -> doc.semanticdb = sdb);
+          .map(sdb -> new LsifDocument(doc.path, sdb));
     } catch (IOException e) {
       options.reporter.error(e);
+      return Stream.empty();
     }
   }
 }
