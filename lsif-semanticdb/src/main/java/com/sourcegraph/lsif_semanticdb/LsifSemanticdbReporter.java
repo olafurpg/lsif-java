@@ -1,10 +1,9 @@
 package com.sourcegraph.lsif_semanticdb;
 
 abstract class LsifSemanticdbReporter {
-    public void error(Throwable e) {
-    }
+  public void error(Throwable e) {}
 
-    public boolean hasErrors() {
-        return false;
-    }
+  public boolean hasErrors() {
+    return false;
+  }
 }
