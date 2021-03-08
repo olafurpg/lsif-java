@@ -36,13 +36,13 @@ final case class IndexSemanticdbCommand(
     @PositionalArguments() targetroots: List[Path] = Nil,
     @Inline() app: Application = Application.default
 ) extends Command {
-  def sourceroot: Path = app.env.workingDirectory
+  def sourceroot: Path = AbsolutePath.of(app.env.workingDirectory)
   def run(): Int = {
     val reporter = new MopedLsifReporter(app)
     val options =
       new LsifSemanticdbOptions(
-        targetroots.asJava,
-        output,
+        targetroots.map(ts => AbsolutePath.of(ts, sourceroot)).asJava,
+        AbsolutePath.of(output, sourceroot),
         sourceroot,
         reporter,
         new LsifToolInfo("lsif-java", BuildInfo.version, Array()),
