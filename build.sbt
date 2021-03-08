@@ -64,11 +64,20 @@ commands +=
       "javafmtCheckAll" :: "publishLocal" :: "docs/docusaurusCreateSite" :: s
   }
 
+lazy val semanticdb = project
+  .in(file("semanticdb-java"))
+  .settings(
+    moduleName := "semanticdb-java",
+    javaOnlySettings,
+    PB.targets.in(Compile) :=
+      Seq(PB.gens.java -> (Compile / sourceManaged).value)
+  )
+
 lazy val agent = project
   .in(file("semanticdb-agent"))
   .settings(
     fatjarPackageSettings,
-    autoScalaLibrary := false,
+    javaOnlySettings,
     moduleName := "semanticdb-agent",
     libraryDependencies ++=
       List(
@@ -76,10 +85,6 @@ lazy val agent = project
         "net.bytebuddy" % "byte-buddy" % "1.10.20",
         "net.bytebuddy" % "byte-buddy-agent" % "1.10.20"
       ),
-    incOptions ~= { old =>
-      old.withEnabled(false)
-    },
-    crossPaths := false,
     Compile / packageBin / packageOptions +=
       Package.ManifestAttributes(
         "Agent-Class" -> "com.sourcegraph.semanticdb_javac.SemanticdbAgent",
@@ -92,13 +97,10 @@ lazy val agent = project
 lazy val plugin = project
   .in(file("semanticdb-javac"))
   .settings(
+    fatjarPackageSettings,
+    javaOnlySettings,
     moduleName := "semanticdb-javac",
     javaToolchainVersion := "1.8",
-    autoScalaLibrary := false,
-    incOptions ~= { old =>
-      old.withEnabled(false)
-    },
-    fatjarPackageSettings,
     assemblyShadeRules.in(assembly) :=
       Seq(
         ShadeRule
@@ -108,14 +110,22 @@ lazy val plugin = project
             "org.relaxng.**" -> "com.sourcegraph.shaded.relaxng.@1"
           )
           .inAll
-      ),
-    crossPaths := false,
-    PB.targets.in(Compile) :=
-      Seq(PB.gens.java -> (Compile / sourceManaged).value)
+      )
   )
+  .dependsOn(semanticdb)
+
+lazy val lsif = project
+  .in(file("lsif-semanticdb"))
+  .settings(
+    moduleName := "lsif-semanticdb",
+    javaToolchainVersion := "1.8",
+    javaOnlySettings,
+    libraryDependencies += "com.google.code.gson" % "gson" % "2.8.6"
+  )
+  .dependsOn(semanticdb)
 
 lazy val cli = project
-  .in(file("cli"))
+  .in(file("lsif-java"))
   .settings(
     moduleName := "lsif-java",
     mainClass.in(Compile) := Some("com.sourcegraph.lsif_java.LsifJava"),
@@ -164,6 +174,7 @@ lazy val cli = project
     nativeImageOutput := target.in(NativeImage).value / "lsif-java"
   )
   .enablePlugins(NativeImagePlugin, BuildInfoPlugin)
+  .dependsOn(semanticdb)
 
 def minimizedSourceDirectory =
   file("tests/minimized/src/main/java").getAbsoluteFile
@@ -268,6 +279,30 @@ lazy val bench = project
   .dependsOn(unit)
   .enablePlugins(JmhPlugin)
 
+lazy val docs = project
+  .in(file("lsif-java-docs"))
+  .settings(
+    mdocOut :=
+      baseDirectory.in(ThisBuild).value / "website" / "target" / "docs",
+    fork := false,
+    mdocVariables :=
+      Map[String, String](
+        "VERSION" -> version.value,
+        "SCALA_VERSION" -> scalaVersion.value,
+        "STABLE_VERSION" -> version.value.replaceFirst("\\-.*", "")
+      )
+  )
+  .dependsOn(unit)
+  .enablePlugins(DocusaurusPlugin)
+
+lazy val javaOnlySettings = List[Def.Setting[_]](
+  autoScalaLibrary := false,
+  incOptions ~= { old =>
+    old.withEnabled(false)
+  },
+  crossPaths := false
+)
+
 lazy val testSettings = List(
   skip.in(publish) := true,
   autoScalaLibrary := true,
@@ -332,19 +367,3 @@ lazy val fatjarPackageSettings = List[Def.Setting[_]](
     ).transform(node).head
   }
 )
-
-lazy val docs = project
-  .in(file("lsif-java-docs"))
-  .settings(
-    mdocOut :=
-      baseDirectory.in(ThisBuild).value / "website" / "target" / "docs",
-    fork := false,
-    mdocVariables :=
-      Map[String, String](
-        "VERSION" -> version.value,
-        "SCALA_VERSION" -> scalaVersion.value,
-        "STABLE_VERSION" -> version.value.replaceFirst("\\-.*", "")
-      )
-  )
-  .dependsOn(unit)
-  .enablePlugins(DocusaurusPlugin)

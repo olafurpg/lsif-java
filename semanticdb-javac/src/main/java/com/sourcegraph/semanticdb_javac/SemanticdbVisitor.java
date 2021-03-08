@@ -27,13 +27,13 @@ public class SemanticdbVisitor extends TreePathScanner<Void, Void> {
   private final LocalSymbolsCache locals;
   private final JavacTask task;
   private final TaskEvent event;
-  private final SemanticdbOptions options;
+  private final SemanticdbJavacOptions options;
   private final EndPosTable endPosTable;
   private final ArrayList<Semanticdb.SymbolOccurrence> occurrences;
   private final ArrayList<Semanticdb.SymbolInformation> symbolInfos;
 
   public SemanticdbVisitor(
-      JavacTask task, GlobalSymbolsCache globals, TaskEvent event, SemanticdbOptions options) {
+      JavacTask task, GlobalSymbolsCache globals, TaskEvent event, SemanticdbJavacOptions options) {
     this.task = task;
     this.globals = globals; // Reused cache between compilation units.
     this.locals = new LocalSymbolsCache(); // Fresh cache per compilation unit.

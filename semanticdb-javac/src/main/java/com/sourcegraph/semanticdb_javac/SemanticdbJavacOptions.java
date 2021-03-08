@@ -5,7 +5,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 
 /** Settings that can be configured alongside the -Xplugin compiler option. */
-public class SemanticdbOptions {
+public class SemanticdbJavacOptions {
 
   /** The directory to place */
   public Path targetroot;
@@ -15,7 +15,7 @@ public class SemanticdbOptions {
   public boolean verboseEnabled = false;
   public final ArrayList<String> errors;
 
-  public SemanticdbOptions() {
+  public SemanticdbJavacOptions() {
     errors = new ArrayList<>();
   }
 
@@ -26,8 +26,8 @@ public class SemanticdbOptions {
         option, option);
   }
 
-  public static SemanticdbOptions parse(String[] args) {
-    SemanticdbOptions result = new SemanticdbOptions();
+  public static SemanticdbJavacOptions parse(String[] args) {
+    SemanticdbJavacOptions result = new SemanticdbJavacOptions();
     for (String arg : args) {
       if (arg.startsWith("-targetroot:")) {
         result.targetroot = Paths.get(arg.substring("-targetroot:".length()));
