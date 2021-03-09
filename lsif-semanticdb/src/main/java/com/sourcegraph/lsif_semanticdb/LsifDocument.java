@@ -11,11 +11,13 @@ public class LsifDocument {
   public Semanticdb.TextDocument semanticdb;
   public long id;
   public final Map<String, Semanticdb.SymbolInformation> symbols;
+  public final Map<String, DefinitionInfo> localSymbols;
 
   public LsifDocument(Path semanticdbPath) {
     this.semanticdbPath = semanticdbPath;
     this.id = -1;
     this.symbols = new HashMap<>();
+    localSymbols = new HashMap<>();
   }
 
   public LsifDocument(Path semanticdbPath, Semanticdb.TextDocument semanticdb, Path sourceroot) {
