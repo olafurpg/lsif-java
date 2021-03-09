@@ -6,21 +6,22 @@ import com.sourcegraph.semanticdb_javac.SemanticdbSymbols;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LsifSemanticdb {
   private final LsifWriter writer;
   private final LsifSemanticdbOptions options;
-  private final Map<String, DefinitionInfo> globalSymbols;
+  private final Map<String, ResultIds> globalSymbols;
+  private final Map<String, ResultIds> globals;
 
   public LsifSemanticdb(LsifWriter writer, LsifSemanticdbOptions options) {
     this.writer = writer;
     this.options = options;
     globalSymbols = new HashMap<>();
+    this.globals = new ConcurrentHashMap<>();
   }
 
   public static void run(LsifSemanticdbOptions options) throws IOException {
@@ -41,57 +42,41 @@ public class LsifSemanticdb {
     emitDocuments(files.stream(), projectId);
     if (options.reporter.hasErrors()) return;
 
-    files.forEach(this::emitDefinitions);
-
-    files.forEach(this::emitReferences);
+    files.forEach(this::emit);
 
     writer.build();
   }
 
-  private void emitReferences(LsifDocument doc) {
+  private void emit(LsifDocument doc) {
+    ResultSets results = new ResultSets(globals, writer);
+    ArrayList<Long> rangeIds = new ArrayList<>();
     for (SymbolOccurrence occ : doc.semanticdb.getOccurrencesList()) {
-      long resultSetId;
-      //      if (globalSymbols.containsKey(occ.getSymbol())) {
-      //        resultSetId = globalSymbols.get(occ.getSymbol());
-      //      } else {
-      //        resultSetId = doc.localSymbols.get(occ.getSymbol());
-      //      }
-      if (occ.getRole() == SymbolOccurrence.Role.REFERENCE) {
-        writer.emitDefinitionResult();
-      } else if (occ.getRole() == SymbolOccurrence.Role.DEFINITION) {
-      }
-      // Hover message
+      SymbolInformation symbolInformation =
+          doc.symbols.getOrDefault(occ.getSymbol(), SymbolInformation.getDefaultInstance());
+      ResultIds ids = results.getOrInsertResultSet(occ.getSymbol());
+      long rangeId = results.getOrInsertRange(occ.getRange());
+      rangeIds.add(rangeId);
+
       // Definition
+      writer.emitNext(rangeId, ids.resultSet);
+
       // Reference
-    }
+      writer.emitItem(ids.referenceResult(), rangeId, doc.id);
 
-    // Emit local + global references
-  }
+      if (occ.getRole() == SymbolOccurrence.Role.DEFINITION) { // Definition
+        writer.emitItem(ids.definitionResult(), rangeId, doc.id);
 
-  private void emitDefinitions(LsifDocument doc) {
-    for (SymbolOccurrence occ : doc.semanticdb.getOccurrencesList()) {
-      if (occ.getRole() == SymbolOccurrence.Role.DEFINITION) {
-        long rangeId = writer.emitRange(occ.getRange());
-        long resultSetId = writer.emitResultSet();
-        writer.emitNext(rangeId, resultSetId);
-        long definitionResultId = writer.emitDefinitionResult();
-        writer.emitDefinitionEdge(resultSetId, definitionResultId);
-        writer.emitItem(definitionResultId, rangeId, doc.id);
-
-        DefinitionInfo info = new DefinitionInfo(doc.id, rangeId, resultSetId, definitionResultId);
-        if (SemanticdbSymbols.isGlobal(occ.getSymbol())) {
-          globalSymbols.put(occ.getSymbol(), info);
-        } else {
-          doc.localSymbols.put(occ.getSymbol(), info);
-        }
-
-        SymbolInformation sinfo =
-            doc.symbols.getOrDefault(occ.getSymbol(), SymbolInformation.getDefaultInstance());
-        String documentation = sinfo.getDisplayName();
-        long hoverResultId = writer.emitHoverResult(doc.semanticdb.getLanguage(), documentation);
-        writer.emitHoverEdge(resultSetId, hoverResultId);
+        // Hover
+        long hoverId =
+            writer.emitHoverResult(
+                doc.semanticdb.getLanguage(),
+                symbolInformation.getDisplayName().isEmpty()
+                    ? occ.getSymbol()
+                    : symbolInformation.getDisplayName());
+        writer.emitHoverEdge(ids.resultSet, hoverId);
       }
     }
+    writer.emitContains(doc.id, rangeIds);
   }
 
   private void emitDocuments(Stream<LsifDocument> files, long projectId) {

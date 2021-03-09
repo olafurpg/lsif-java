@@ -57,7 +57,7 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public <T extends Number> void emitContains(long outV, Iterable<T> inVs) {
-    edge("contains").putLong("outV", outV).putElement("inVs", jsonArray(inVs)).emit();
+    edge("contains").putNumber("outV", outV).putElement("inVs", jsonArray(inVs)).emit();
   }
 
   public long emitRange(Semanticdb.Range range) {
@@ -65,14 +65,14 @@ public class LsifWriter implements AutoCloseable {
         .putElement(
             "start",
             jsonObject()
-                .putLong("line", range.getStartLine())
-                .putLong("character", range.getStartCharacter())
+                .putNumber("line", range.getStartLine())
+                .putNumber("character", range.getStartCharacter())
                 .build())
         .putElement(
             "end",
             jsonObject()
-                .putLong("line", range.getEndLine())
-                .putLong("character", range.getEndCharacter())
+                .putNumber("line", range.getEndLine())
+                .putNumber("character", range.getEndCharacter())
                 .build())
         .emit();
   }
@@ -101,15 +101,19 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public void emitNext(long outV, long inV) {
-    edge("next").putLong("outV", outV).putLong("inV", inV).emit();
+    edge("next").putNumber("outV", outV).putNumber("inV", inV).emit();
   }
 
   public long emitDefinitionResult() {
-    return 0;
+    return vertex("definitionResult").emit();
   }
 
   public void emitDefinitionEdge(long outV, long inV) {
-    edge("textDocument/definition").putLong("outV", outV).putLong("inV", inV).emit();
+    edge("textDocument/definition").putOutIn(outV, inV).emit();
+  }
+
+  public void emitReferenceEdge(long outV, long inV) {
+    edge("textDocument/reference").putOutIn(outV, inV).emit();
   }
 
   public long emitHoverResult(Semanticdb.Language language, String value) {
@@ -129,14 +133,14 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public void emitHoverEdge(long outV, long inV) {
-    edge("textDocument/hover").putLong("outV", outV).putLong("inV", inV).emit();
+    edge("textDocument/hover").putOutIn(outV, inV).emit();
   }
 
   public void emitItem(long outV, long inV, long document) {
     edge("item")
-        .putLong("outV", outV)
+        .putNumber("outV", outV)
         .putElement("inVs", jsonArray(new JsonPrimitive(inV)))
-        .putLong("document", document)
+        .putNumber("document", document)
         .emit();
   }
 
@@ -174,6 +178,10 @@ public class LsifWriter implements AutoCloseable {
     return new JsonObjectBuilder();
   }
 
+  public long emitReferenceResult() {
+    return vertex("referenceResult").emit();
+  }
+
   private class JsonObjectBuilder {
     public final long id;
     public final JsonObject object;
@@ -184,9 +192,9 @@ public class LsifWriter implements AutoCloseable {
     }
 
     private JsonObjectBuilder(String type, String label) {
-      this.id = LsifWriter.this.id.getAndIncrement();
+      this.id = LsifWriter.this.id.incrementAndGet();
       this.object = new JsonObject();
-      putLong("id", id);
+      putNumber("id", id);
       putString("type", type);
       putString("label", label);
     }
@@ -201,7 +209,13 @@ public class LsifWriter implements AutoCloseable {
       return this;
     }
 
-    private <T extends Number> JsonObjectBuilder putLong(String key, Number value) {
+    private <T extends Number> JsonObjectBuilder putOutIn(T outV, Number inV) {
+      putNumber("outV", outV);
+      putNumber("inV", inV);
+      return this;
+    }
+
+    private <T extends Number> JsonObjectBuilder putNumber(String key, T value) {
       object.add(key, new JsonPrimitive(value));
       return this;
     }

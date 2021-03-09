@@ -11,7 +11,7 @@ public class LsifDocument {
   public Semanticdb.TextDocument semanticdb;
   public long id;
   public final Map<String, Semanticdb.SymbolInformation> symbols;
-  public final Map<String, DefinitionInfo> localSymbols;
+  public final Map<String, ResultIds> localSymbols;
 
   public LsifDocument(Path semanticdbPath) {
     this.semanticdbPath = semanticdbPath;

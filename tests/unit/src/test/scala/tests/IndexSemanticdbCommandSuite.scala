@@ -4,14 +4,16 @@ import com.sourcegraph.lsif_java.LsifJava
 import moped.testkit.{FileLayout, MopedSuite}
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 import scala.meta.internal.io.FileIO
 import scala.meta.io.AbsolutePath
+import scala.sys.process.Process
 
 class IndexSemanticdbCommandSuite extends MopedSuite(LsifJava.app) {
   test("basic") {
     val targetroot = temporaryDirectory().resolve("targetroot")
     val output = temporaryDirectory().resolve("dump.lsif")
+    val outputGolden = temporaryDirectory().resolve("dump-golden.lsif")
     val sourceroot = workingDirectory
     FileLayout.fromString(
       """|/example/Example1.java
@@ -37,7 +39,28 @@ class IndexSemanticdbCommandSuite extends MopedSuite(LsifJava.app) {
       List("index-semanticdb", "--output", output.toString, targetroot.toString)
     )
     assert(exit == 0, clues(app.capturedOutput))
-    val text = FileIO.slurp(AbsolutePath(output), StandardCharsets.UTF_8)
-    pprint.log(text)
+
+    Process(
+      List(
+        "lsif-semanticdb",
+        s"--semanticdbDir=$targetroot",
+        s"--out=$outputGolden"
+      )
+    ).!
+    printDump(output)
+//    printDump(outputGolden)
+    Process(List("lsif-validate", output.toString)).!
+  }
+
+  def printDump(path: Path): Unit = {
+    val text = FileIO.slurp(AbsolutePath(path), StandardCharsets.UTF_8)
+    val textWithLines = text
+      .linesIterator
+      .zipWithIndex
+      .map { case (line, i) =>
+        s"$i: $line"
+      }
+      .mkString("\n")
+    pprint.log(textWithLines)
   }
 }
