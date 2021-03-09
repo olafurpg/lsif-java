@@ -51,6 +51,7 @@ public class LsifSemanticdb {
     long documentId = writer.emitDocument(doc);
     ResultSets results = new ResultSets(globals, writer);
     ArrayList<Long> rangeIds = new ArrayList<>();
+
     for (SymbolOccurrence occ : doc.semanticdb.getOccurrencesList()) {
       SymbolInformation symbolInformation =
           doc.symbols.getOrDefault(occ.getSymbol(), SymbolInformation.getDefaultInstance());
@@ -68,19 +69,13 @@ public class LsifSemanticdb {
         writer.emitItem(ids.definitionResult(), rangeId, doc.id);
 
         // Hover
-        String documentation = symbolInformation.getDocumentation();
-        if (documentation.isEmpty()) documentation = symbolInformation.getDisplayName();
+        String documentation = symbolInformation.getDocumentation().getMessage();
         long hoverId = writer.emitHoverResult(doc.semanticdb.getLanguage(), documentation);
         writer.emitHoverEdge(ids.resultSet, hoverId);
       }
     }
     writer.emitContains(doc.id, rangeIds);
     return documentId;
-  }
-
-  private void emitDocuments(Stream<LsifDocument> files, long projectId) {
-    List<Long> ids = files.map(writer::emitDocument).collect(Collectors.toList());
-    writer.emitContains(projectId, ids);
   }
 
   private Stream<LsifDocument> parseTextDocument(Path semanticdbPath) {
