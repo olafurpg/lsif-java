@@ -49,7 +49,7 @@ public class LsifWriter implements AutoCloseable {
     long docId =
         vertex("document")
             .putString("uri", doc.semanticdb.getUri())
-            .putString("language", doc.semanticdb.getLanguage().toString())
+            .putString("language", doc.semanticdb.getLanguage().toString().toLowerCase())
             .emit();
     doc.id = docId;
     return docId;
@@ -137,7 +137,7 @@ public class LsifWriter implements AutoCloseable {
     public long emit() {
       if (id < 0) throw new IllegalStateException(gson.toJson(this));
 
-      output.println(gson.toJson(this));
+      output.println(gson.toJson(object));
       return id;
     }
   }

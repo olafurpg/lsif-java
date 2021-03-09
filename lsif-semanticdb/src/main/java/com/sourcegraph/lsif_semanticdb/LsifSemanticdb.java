@@ -4,7 +4,6 @@ import com.sourcegraph.semanticdb_javac.Semanticdb;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -48,10 +47,10 @@ public class LsifSemanticdb {
 
   private Stream<LsifDocument> parseTextDocument(LsifDocument doc) {
     try {
-      return Semanticdb.TextDocuments.parseFrom(Files.readAllBytes(doc.path)).getDocumentsList()
-          .stream()
+      return Semanticdb.TextDocuments.parseFrom(Files.readAllBytes(doc.semanticdbPath))
+          .getDocumentsList().stream()
           .filter(sdb -> !sdb.getOccurrencesList().isEmpty())
-          .map(sdb -> new LsifDocument(doc.path, sdb));
+          .map(sdb -> new LsifDocument(doc.semanticdbPath, sdb, options.sourceroot));
     } catch (IOException e) {
       options.reporter.error(e);
       return Stream.empty();
