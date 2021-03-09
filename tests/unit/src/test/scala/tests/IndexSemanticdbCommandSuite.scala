@@ -5,6 +5,7 @@ import moped.testkit.{FileLayout, MopedSuite}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import java.util.concurrent.atomic.AtomicReference
 import scala.meta.internal.io.FileIO
 import scala.meta.io.AbsolutePath
 import scala.sys.process.Process
@@ -19,12 +20,14 @@ class IndexSemanticdbCommandSuite extends MopedSuite(LsifJava.app) {
       """|/example/Example1.java
          |package example;
          |
+         | /** Example1 docstring */
          |public class Example1 {
          |  public Example2 example;
          |}
          |/example/Example2.java
          |package example;
          |
+         | /** Example2 docstring */
          |public class Example2 {
          |  public Example1 example;
          |}

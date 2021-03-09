@@ -13,15 +13,10 @@ public class LsifDocument {
   public final Map<String, Semanticdb.SymbolInformation> symbols;
   public final Map<String, ResultIds> localSymbols;
 
-  public LsifDocument(Path semanticdbPath) {
-    this.semanticdbPath = semanticdbPath;
-    this.id = -1;
-    this.symbols = new HashMap<>();
-    localSymbols = new HashMap<>();
-  }
-
   public LsifDocument(Path semanticdbPath, Semanticdb.TextDocument semanticdb, Path sourceroot) {
-    this(semanticdbPath);
+    this.semanticdbPath = semanticdbPath;
+    this.symbols = new HashMap<>();
+    this.localSymbols = new HashMap<>();
     String uri = sourceroot.resolve(semanticdb.getUri()).toUri().toString();
     setSemanticdb(Semanticdb.TextDocument.newBuilder(semanticdb).setUri(uri).build());
   }

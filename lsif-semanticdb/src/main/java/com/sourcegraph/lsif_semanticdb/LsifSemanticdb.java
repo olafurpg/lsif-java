@@ -6,6 +6,7 @@ import com.sourcegraph.semanticdb_javac.SemanticdbSymbols;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -33,21 +34,21 @@ public class LsifSemanticdb {
     writer.emitMetaData();
     long projectId = writer.emitProject(options.language);
 
-    List<LsifDocument> files = SemanticdbWalker.findSemanticdbFiles(options);
+    List<Path> files = SemanticdbWalker.findSemanticdbFiles(options);
     if (options.reporter.hasErrors()) return;
 
-    files = files.stream().flatMap(this::parseTextDocument).collect(Collectors.toList());
-    if (options.reporter.hasErrors()) return;
-
-    emitDocuments(files.stream(), projectId);
-    if (options.reporter.hasErrors()) return;
-
-    files.forEach(this::emit);
+    List<Long> documentIds =
+        files.stream()
+            .flatMap(this::parseTextDocument)
+            .map(this::emit)
+            .collect(Collectors.toList());
+    writer.emitContains(projectId, documentIds);
 
     writer.build();
   }
 
-  private void emit(LsifDocument doc) {
+  private Long emit(LsifDocument doc) {
+    long documentId = writer.emitDocument(doc);
     ResultSets results = new ResultSets(globals, writer);
     ArrayList<Long> rangeIds = new ArrayList<>();
     for (SymbolOccurrence occ : doc.semanticdb.getOccurrencesList()) {
@@ -67,16 +68,14 @@ public class LsifSemanticdb {
         writer.emitItem(ids.definitionResult(), rangeId, doc.id);
 
         // Hover
-        long hoverId =
-            writer.emitHoverResult(
-                doc.semanticdb.getLanguage(),
-                symbolInformation.getDisplayName().isEmpty()
-                    ? occ.getSymbol()
-                    : symbolInformation.getDisplayName());
+        String documentation = symbolInformation.getDocumentation();
+        if (documentation.isEmpty()) documentation = symbolInformation.getDisplayName();
+        long hoverId = writer.emitHoverResult(doc.semanticdb.getLanguage(), documentation);
         writer.emitHoverEdge(ids.resultSet, hoverId);
       }
     }
     writer.emitContains(doc.id, rangeIds);
+    return documentId;
   }
 
   private void emitDocuments(Stream<LsifDocument> files, long projectId) {
@@ -84,12 +83,12 @@ public class LsifSemanticdb {
     writer.emitContains(projectId, ids);
   }
 
-  private Stream<LsifDocument> parseTextDocument(LsifDocument doc) {
+  private Stream<LsifDocument> parseTextDocument(Path semanticdbPath) {
     try {
-      return Semanticdb.TextDocuments.parseFrom(Files.readAllBytes(doc.semanticdbPath))
+      return Semanticdb.TextDocuments.parseFrom(Files.readAllBytes(semanticdbPath))
           .getDocumentsList().stream()
           .filter(sdb -> !sdb.getOccurrencesList().isEmpty())
-          .map(sdb -> new LsifDocument(doc.semanticdbPath, sdb, options.sourceroot));
+          .map(sdb -> new LsifDocument(semanticdbPath, sdb, options.sourceroot));
     } catch (IOException e) {
       options.reporter.error(e);
       return Stream.empty();

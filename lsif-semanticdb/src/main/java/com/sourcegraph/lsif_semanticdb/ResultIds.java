@@ -1,7 +1,5 @@
 package com.sourcegraph.lsif_semanticdb;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 public class ResultIds {
   public final long resultSet;
   public final LsifWriter writer;

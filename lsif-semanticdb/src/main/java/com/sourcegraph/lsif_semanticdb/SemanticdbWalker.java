@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SemanticdbWalker extends SimpleFileVisitor<Path> {
-  private final ArrayList<LsifDocument> result;
+  private final ArrayList<Path> result;
   private final LsifSemanticdbOptions options;
   private final PathMatcher semanticdbPattern;
 
@@ -20,7 +20,7 @@ public class SemanticdbWalker extends SimpleFileVisitor<Path> {
   @Override
   public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
     if (semanticdbPattern.matches(file)) {
-      result.add(new LsifDocument(file));
+      result.add(file);
     }
     return super.visitFile(file, attrs);
   }
@@ -31,8 +31,7 @@ public class SemanticdbWalker extends SimpleFileVisitor<Path> {
     return FileVisitResult.CONTINUE;
   }
 
-  public static List<LsifDocument> findSemanticdbFiles(LsifSemanticdbOptions options)
-      throws IOException {
+  public static List<Path> findSemanticdbFiles(LsifSemanticdbOptions options) throws IOException {
     SemanticdbWalker walker = new SemanticdbWalker(options);
     for (Path root : options.targetroots) {
       Files.walkFileTree(root, walker);
