@@ -76,6 +76,7 @@ public class LsifSemanticdb {
         writer.emitNext(rangeId, resultSetId);
         long definitionResultId = writer.emitDefinitionResult();
         writer.emitDefinitionEdge(resultSetId, definitionResultId);
+        writer.emitItem(definitionResultId, rangeId, doc.id);
 
         DefinitionInfo info = new DefinitionInfo(doc.id, rangeId, resultSetId, definitionResultId);
         if (SemanticdbSymbols.isGlobal(occ.getSymbol())) {

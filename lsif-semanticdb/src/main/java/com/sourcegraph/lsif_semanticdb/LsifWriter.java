@@ -88,6 +88,64 @@ public class LsifWriter implements AutoCloseable {
     output.close();
   }
 
+  private JsonObjectBuilder vertex(String label) {
+    return new JsonObjectBuilder("vertex", label);
+  }
+
+  private JsonObjectBuilder edge(String label) {
+    return new JsonObjectBuilder("edge", label);
+  }
+
+  public long emitResultSet() {
+    return vertex("resultSet").emit();
+  }
+
+  public void emitNext(long outV, long inV) {
+    edge("next").putLong("outV", outV).putLong("inV", inV).emit();
+  }
+
+  public long emitDefinitionResult() {
+    return 0;
+  }
+
+  public void emitDefinitionEdge(long outV, long inV) {
+    edge("textDocument/definition").putLong("outV", outV).putLong("inV", inV).emit();
+  }
+
+  public long emitHoverResult(Semanticdb.Language language, String value) {
+    return vertex("hoverResult")
+        .putElement(
+            "result",
+            jsonObject()
+                .putElement(
+                    "contents",
+                    jsonArray(
+                        jsonObject()
+                            .putString("language", language.toString().toLowerCase())
+                            .putString("value", value)
+                            .build()))
+                .build())
+        .emit();
+  }
+
+  public void emitHoverEdge(long outV, long inV) {
+    edge("textDocument/hover").putLong("outV", outV).putLong("inV", inV).emit();
+  }
+
+  public void emitItem(long outV, long inV, long document) {
+    edge("item")
+        .putLong("outV", outV)
+        .putElement("inVs", jsonArray(new JsonPrimitive(inV)))
+        .putLong("document", document)
+        .emit();
+  }
+
+  private JsonArray jsonArray(JsonElement value) {
+    JsonArray array = new JsonArray();
+    array.add(value);
+    return array;
+  }
+
   private JsonArray jsonArray(JsonElement[] values) {
     JsonArray array = new JsonArray();
     for (JsonElement value : values) {
@@ -114,46 +172,6 @@ public class LsifWriter implements AutoCloseable {
 
   private JsonObjectBuilder jsonObject() {
     return new JsonObjectBuilder();
-  }
-
-  private JsonObjectBuilder vertex(String label) {
-    return new JsonObjectBuilder("vertex", label);
-  }
-
-  private JsonObjectBuilder edge(String label) {
-    return new JsonObjectBuilder("edge", label);
-  }
-
-  public long emitResultSet() {
-    return vertex("resultSet").emit();
-  }
-
-  public void emitNext(long outV, long inV) {
-    edge("next").putLong("outV", outV).putLong("inV", inV).emit();
-  }
-
-  public long emitDefinitionResult() {
-    return 0;
-  }
-
-  public void emitDefinitionEdge(long outV, long inV) {
-    edge("textDocument/definition").putLong("outV", outV).putLong("inV", inV).emit();
-  }
-
-  public long emitHoverResult(Semanticdb.Language language, String value) {
-    JsonArray contents = new JsonArray();
-    contents.add(
-        jsonObject()
-            .putString("language", language.toString().toLowerCase())
-            .putString("value", value)
-            .build());
-    return vertex("hoverResult")
-        .putElement("result", jsonObject().putElement("contents", contents).build())
-        .emit();
-  }
-
-  public void emitHoverEdge(long outV, long inV) {
-    edge("textDocument/hover").putLong("outV", outV).putLong("inV", inV).emit();
   }
 
   private class JsonObjectBuilder {
