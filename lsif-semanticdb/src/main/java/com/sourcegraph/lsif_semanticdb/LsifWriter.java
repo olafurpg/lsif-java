@@ -4,8 +4,7 @@ import com.google.gson.*;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -13,79 +12,51 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class LsifWriter implements AutoCloseable {
   private final Path tmp;
-  private final OutputStream output;
+  private final PrintStream output;
   private final LsifSemanticdbOptions options;
   private final Gson gson;
   private final AtomicLong id;
 
   public LsifWriter(LsifSemanticdbOptions options) throws IOException {
     this.tmp = Files.createTempFile("lsif-semanticdb", "dump.lsif");
-    this.output = new BufferedOutputStream(Files.newOutputStream(tmp));
+    this.output =
+        new PrintStream(new BufferedOutputStream(Files.newOutputStream(tmp)), false, "utf8");
     this.options = options;
     this.gson = new Gson();
     this.id = new AtomicLong();
   }
 
-  private long emitObject(JsonObject object, String type, String label) {
-    object.add("type", new JsonPrimitive(type));
-    object.add("label", new JsonPrimitive(label));
-    long id = this.id.getAndIncrement();
-    object.add("id", new JsonPrimitive(this.id));
-    try {
-      output.write(gson.toJson(object).getBytes(StandardCharsets.UTF_8));
-    } catch (IOException e) {
-      options.reporter.error(e);
-    }
-    return id;
-  }
-
-  private long emitVertex(JsonObject object, String label) {
-    return emitObject(object, "vertex", label);
-  }
-
-  private long emitEdge(JsonObject object, String label) {
-    return emitObject(object, "edge", label);
-  }
-
   public void emitMetaData() {
-    JsonObject metaData = new JsonObject();
-    JsonObject toolInfo = new JsonObject();
-    metaData.add("version", new JsonPrimitive("0.4.3"));
-    metaData.add("projectRoot", new JsonPrimitive(options.sourceroot.toUri().toString()));
-    metaData.add("positionEncoding", new JsonPrimitive("utf-16"));
-    metaData.add("toolInfo", toolInfo);
-    toolInfo.add("name", new JsonPrimitive(options.toolInfo.name));
-    toolInfo.add("version", new JsonPrimitive(options.toolInfo.version));
-    JsonArray args = new JsonArray();
-    for (String arg : options.toolInfo.args) {
-      args.add(new JsonPrimitive(arg));
-    }
-    toolInfo.add("args", args);
-    emitVertex(metaData, "metaData");
+    vertex("metaData")
+        .putString("version", "0.4.3")
+        .putString("projectRoot", options.sourceroot.toUri().toString())
+        .putString("positionEncoding", "utf-16")
+        .putElement(
+            "toolInfo",
+            jsonObject()
+                .putString("name", options.toolInfo.name)
+                .putString("version", options.toolInfo.version)
+                .putElement("args", jsonArray(options.toolInfo.args))
+                .build())
+        .emit();
   }
 
   public long emitProject(String language) {
-    JsonObject project = new JsonObject();
-    project.add("uri", new JsonPrimitive(language));
-    return emitVertex(project, "project");
+    return vertex("project").putString("kind", language).emit();
   }
 
   public long emitDocument(LsifDocument doc) {
-    JsonObject project = new JsonObject();
-    project.add("uri", new JsonPrimitive(doc.semanticdb.getUri()));
-    project.add("language", new JsonPrimitive(doc.semanticdb.getLanguage().toString()));
-    long id = emitVertex(project, "document");
-    doc.id = id;
-    return id;
+    long docId =
+        vertex("document")
+            .putString("uri", doc.semanticdb.getUri())
+            .putString("language", doc.semanticdb.getLanguage().toString())
+            .emit();
+    doc.id = docId;
+    return docId;
   }
 
-  public long emitContains(long outV, Iterable<Long> inV) {
-    JsonObject project = new JsonObject();
-    JsonArray ids = new JsonArray();
-    for (Long in : inV) {
-      ids.add(new JsonPrimitive(in));
-    }
-    return emitEdge(project, "contains");
+  public <T extends Number> void emitContains(long outV, Iterable<T> inVs) {
+    edge("contains").putLong("outV", outV).putElement("inVs", jsonArray(inVs)).emit();
   }
 
   public void build() throws IOException {
@@ -94,8 +65,80 @@ public class LsifWriter implements AutoCloseable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     output.flush();
     output.close();
+  }
+
+  private <T extends Number> JsonArray jsonArray(Iterable<T> values) {
+    JsonArray array = new JsonArray();
+    for (Number value : values) {
+      array.add(value);
+    }
+    return array;
+  }
+
+  private JsonArray jsonArray(String[] values) {
+    JsonArray array = new JsonArray();
+    for (String value : values) {
+      array.add(value);
+    }
+    return array;
+  }
+
+  private JsonObjectBuilder jsonObject() {
+    return new JsonObjectBuilder();
+  }
+
+  private JsonObjectBuilder vertex(String label) {
+    return new JsonObjectBuilder("vertex", label);
+  }
+
+  private JsonObjectBuilder edge(String label) {
+    return new JsonObjectBuilder("edge", label);
+  }
+
+  private class JsonObjectBuilder {
+    public final long id;
+    public final JsonObject object;
+
+    private JsonObjectBuilder() {
+      this.object = new JsonObject();
+      this.id = -1;
+    }
+
+    private JsonObjectBuilder(String type, String label) {
+      this.id = LsifWriter.this.id.getAndIncrement();
+      this.object = new JsonObject();
+      putLong("id", id);
+      putString("type", type);
+      putString("label", label);
+    }
+
+    public JsonObjectBuilder putString(String key, String value) {
+      object.add(key, new JsonPrimitive(value));
+      return this;
+    }
+
+    public JsonObjectBuilder putElement(String key, JsonElement value) {
+      object.add(key, value);
+      return this;
+    }
+
+    private JsonObjectBuilder putLong(String key, long value) {
+      object.add(key, new JsonPrimitive(value));
+      return this;
+    }
+
+    public JsonObject build() {
+      return object;
+    }
+
+    public long emit() {
+      if (id < 0) throw new IllegalStateException(gson.toJson(this));
+
+      output.println(gson.toJson(this));
+      return id;
+    }
   }
 }

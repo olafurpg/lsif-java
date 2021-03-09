@@ -30,9 +30,7 @@ import os.Shellable
 final case class IndexSemanticdbCommand(
     @Description("The name of the output file.") output: Path = Paths
       .get("dump.lsif"),
-    @Description(
-      "SemanticDB file paths or directories that contain SemanticDB files."
-    )
+    @Description("Directories that contain SemanticDB files.")
     @PositionalArguments() targetroots: List[Path] = Nil,
     @Inline() app: Application = Application.default
 ) extends Command {
@@ -49,6 +47,7 @@ final case class IndexSemanticdbCommand(
         "java"
       )
     LsifSemanticdb.run(options)
+    app.info(options.output.toString)
     app.reporter.exitCode()
   }
 }

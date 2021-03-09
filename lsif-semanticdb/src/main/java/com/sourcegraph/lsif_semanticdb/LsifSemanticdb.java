@@ -28,13 +28,14 @@ public class LsifSemanticdb {
     writer.emitMetaData();
     long projectId = writer.emitProject(options.language);
 
-    Stream<LsifDocument> files = SemanticdbWalker.findSemanticdbFiles(options).parallelStream();
+    List<LsifDocument> files = SemanticdbWalker.findSemanticdbFiles(options);
+    if (options.reporter.hasErrors()) return;
+    System.out.println(files);
+
+    files = files.stream().flatMap(this::parseTextDocument).collect(Collectors.toList());
     if (options.reporter.hasErrors()) return;
 
-    files = files.flatMap(this::parseTextDocument);
-    if (options.reporter.hasErrors()) return;
-
-    emitDocuments(files, projectId);
+    emitDocuments(files.stream(), projectId);
     if (options.reporter.hasErrors()) return;
 
     writer.build();

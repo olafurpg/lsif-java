@@ -18,4 +18,9 @@ public class LsifDocument {
     this(path);
     this.semanticdb = semanticdb;
   }
+
+  @Override
+  public String toString() {
+    return "LsifDocument{" + "path=" + path + ", semanticdb=" + semanticdb + ", id=" + id + '}';
+  }
 }
