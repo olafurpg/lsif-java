@@ -1,6 +1,7 @@
 package com.sourcegraph.lsif_semanticdb;
 
 import com.google.gson.*;
+import com.sourcegraph.semanticdb_javac.Semanticdb;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -57,6 +58,23 @@ public class LsifWriter implements AutoCloseable {
 
   public <T extends Number> void emitContains(long outV, Iterable<T> inVs) {
     edge("contains").putLong("outV", outV).putElement("inVs", jsonArray(inVs)).emit();
+  }
+
+  public long emitRange(Semanticdb.Range range) {
+    return vertex("range")
+        .putElement(
+            "start",
+            jsonObject()
+                .putLong("line", range.getStartLine())
+                .putLong("character", range.getStartCharacter())
+                .build())
+        .putElement(
+            "end",
+            jsonObject()
+                .putLong("line", range.getEndLine())
+                .putLong("character", range.getEndCharacter())
+                .build())
+        .emit();
   }
 
   public void build() throws IOException {
@@ -125,7 +143,7 @@ public class LsifWriter implements AutoCloseable {
       return this;
     }
 
-    private JsonObjectBuilder putLong(String key, long value) {
+    private <T extends Number> JsonObjectBuilder putLong(String key, Number value) {
       object.add(key, new JsonPrimitive(value));
       return this;
     }
