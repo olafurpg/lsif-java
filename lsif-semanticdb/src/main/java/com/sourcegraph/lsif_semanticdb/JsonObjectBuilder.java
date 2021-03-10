@@ -16,17 +16,6 @@ public class JsonObjectBuilder {
 
   public final long id;
   public final JsonObject object = new JsonObject();
-  public final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-  public final JsonGenerator json;
-
-  {
-    try {
-      json = new JsonFactory().createGenerator(baos, JsonEncoding.UTF8);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   public final Gson gson;
   public final LsifOutputStream output;
   public final AtomicBoolean isEmitted;
