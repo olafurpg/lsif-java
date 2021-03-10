@@ -120,7 +120,9 @@ lazy val lsif = project
     moduleName := "lsif-semanticdb",
     javaToolchainVersion := "1.8",
     javaOnlySettings,
-    libraryDependencies += "com.google.code.gson" % "gson" % "2.8.6"
+    libraryDependencies += "com.google.code.gson" % "gson" % "2.8.6",
+    libraryDependencies +=
+      "com.fasterxml.jackson.core" % "jackson-core" % "2.12.2"
   )
   .dependsOn(semanticdb)
 
