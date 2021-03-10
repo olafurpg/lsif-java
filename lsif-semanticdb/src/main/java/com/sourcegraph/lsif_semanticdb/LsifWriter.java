@@ -12,19 +12,20 @@ import java.nio.file.StandardCopyOption;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LsifWriter implements AutoCloseable {
+
   private final Path tmp;
   private final PrintStream output;
   private final LsifSemanticdbOptions options;
-  private final Gson gson;
   private final AtomicLong id;
+  private final Gson gson;
 
   public LsifWriter(LsifSemanticdbOptions options) throws IOException {
     this.tmp = Files.createTempFile("lsif-semanticdb", "dump.lsif");
     this.output =
         new PrintStream(new BufferedOutputStream(Files.newOutputStream(tmp)), false, "utf8");
     this.options = options;
-    this.gson = new Gson();
     this.id = new AtomicLong();
+    this.gson = new Gson();
   }
 
   public void emitMetaData() {
@@ -47,13 +48,10 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public long emitDocument(LsifDocument doc) {
-    long docId =
-        vertex("document")
-            .putString("uri", doc.semanticdb.getUri())
-            .putString("language", doc.semanticdb.getLanguage().toString().toLowerCase())
-            .emit();
-    doc.id = docId;
-    return docId;
+    return vertex("document")
+        .putString("uri", doc.semanticdb.getUri())
+        .putString("language", doc.semanticdb.getLanguage().toString().toLowerCase())
+        .emit();
   }
 
   public <T extends Number> void emitContains(long outV, Iterable<T> inVs) {
@@ -89,11 +87,15 @@ public class LsifWriter implements AutoCloseable {
   }
 
   private JsonObjectBuilder vertex(String label) {
-    return new JsonObjectBuilder("vertex", label);
+    return new JsonObjectBuilder(nextId(), "vertex", label, gson, output);
   }
 
   private JsonObjectBuilder edge(String label) {
-    return new JsonObjectBuilder("edge", label);
+    return new JsonObjectBuilder(nextId(), "edge", label, gson, output);
+  }
+
+  private long nextId() {
+    return id.incrementAndGet();
   }
 
   public long emitResultSet() {
@@ -104,8 +106,12 @@ public class LsifWriter implements AutoCloseable {
     edge("next").putNumber("outV", outV).putNumber("inV", inV).emit();
   }
 
-  public long emitDefinitionResult() {
-    return vertex("definitionResult").emit();
+  public JsonObjectBuilder emitReferenceResult() {
+    return vertex("referenceResult");
+  }
+
+  public JsonObjectBuilder emitDefinitionResult() {
+    return vertex("definitionResult");
   }
 
   public void emitDefinitionEdge(long outV, long inV) {
@@ -175,60 +181,6 @@ public class LsifWriter implements AutoCloseable {
   }
 
   private JsonObjectBuilder jsonObject() {
-    return new JsonObjectBuilder();
-  }
-
-  public long emitReferenceResult() {
-    return vertex("referenceResult").emit();
-  }
-
-  private class JsonObjectBuilder {
-    public final long id;
-    public final JsonObject object;
-
-    private JsonObjectBuilder() {
-      this.object = new JsonObject();
-      this.id = -1;
-    }
-
-    private JsonObjectBuilder(String type, String label) {
-      this.id = LsifWriter.this.id.incrementAndGet();
-      this.object = new JsonObject();
-      putNumber("id", id);
-      putString("type", type);
-      putString("label", label);
-    }
-
-    public JsonObjectBuilder putString(String key, String value) {
-      object.add(key, new JsonPrimitive(value));
-      return this;
-    }
-
-    public JsonObjectBuilder putElement(String key, JsonElement value) {
-      object.add(key, value);
-      return this;
-    }
-
-    private <T extends Number> JsonObjectBuilder putOutIn(T outV, Number inV) {
-      putNumber("outV", outV);
-      putNumber("inV", inV);
-      return this;
-    }
-
-    private <T extends Number> JsonObjectBuilder putNumber(String key, T value) {
-      object.add(key, new JsonPrimitive(value));
-      return this;
-    }
-
-    public JsonObject build() {
-      return object;
-    }
-
-    public long emit() {
-      if (id < 0) throw new IllegalStateException(gson.toJson(this));
-
-      output.println(gson.toJson(object));
-      return id;
-    }
+    return new JsonObjectBuilder(gson, output);
   }
 }

@@ -2,7 +2,6 @@ package com.sourcegraph.lsif_semanticdb;
 
 import com.sourcegraph.semanticdb_javac.Semanticdb.*;
 import com.sourcegraph.semanticdb_javac.Semanticdb;
-import com.sourcegraph.semanticdb_javac.SemanticdbSymbols;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,19 +39,22 @@ public class LsifSemanticdb {
     List<Long> documentIds =
         files.stream()
             .flatMap(this::parseTextDocument)
-            .map(this::emit)
+            .parallel()
+            .map(this::processDocument)
             .collect(Collectors.toList());
+
     writer.emitContains(projectId, documentIds);
 
     writer.build();
   }
 
-  private Long emit(LsifDocument doc) {
+  private Long processDocument(LsifDocument doc) {
     long documentId = writer.emitDocument(doc);
+    doc.id = documentId;
     ResultSets results = new ResultSets(globals, writer);
-    ArrayList<Long> rangeIds = new ArrayList<>();
+    Set<Long> rangeIds = new LinkedHashSet<>();
 
-    for (SymbolOccurrence occ : doc.semanticdb.getOccurrencesList()) {
+    for (SymbolOccurrence occ : doc.sortedSymbolOccurrences()) {
       SymbolInformation symbolInformation =
           doc.symbols.getOrDefault(occ.getSymbol(), SymbolInformation.getDefaultInstance());
       ResultIds ids = results.getOrInsertResultSet(occ.getSymbol());

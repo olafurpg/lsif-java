@@ -148,17 +148,16 @@ case class IndexCommand(
         if (!Files.isDirectory(tool.targetroot)) {
           generateSemanticdbResult.exitCode
         } else {
-          val generateLsifResult = process(
-            "lsif-semanticdb",
-            s"--out=${finalOutput}",
-            s"--semanticdbDir=${tool.targetroot}"
-          )
+          val generateLsifResult = IndexSemanticdbCommand(
+              output= finalOutput,
+              targetroots = List(tool.targetroot)
+            ).run()
           if (
-            generateLsifResult.exitCode == 0 && Files.isRegularFile(finalOutput)
+            generateLsifResult== 0 && Files.isRegularFile(finalOutput)
           ) {
-            app.info(finalOutput.toAbsolutePath().toString())
+            app.info(finalOutput.toAbsolutePath.toString())
           }
-          generateSemanticdbResult.exitCode + generateLsifResult.exitCode
+          generateSemanticdbResult.exitCode + generateLsifResult
         }
       case many =>
         val names = many.map(_.name).mkString(", ")

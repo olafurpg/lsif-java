@@ -3,8 +3,7 @@ package com.sourcegraph.lsif_semanticdb;
 import com.sourcegraph.semanticdb_javac.Semanticdb;
 
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class LsifDocument {
   public final Path semanticdbPath;
@@ -31,6 +30,14 @@ public class LsifDocument {
         + ", id="
         + id
         + '}';
+  }
+
+  public List<Semanticdb.SymbolOccurrence> sortedSymbolOccurrences() {
+    ArrayList<Semanticdb.SymbolOccurrence> result =
+        new ArrayList<>(semanticdb.getOccurrencesList().size());
+    result.addAll(semanticdb.getOccurrencesList());
+    result.sort((o1, o2) -> new RangeComparator().compare(o1.getRange(), o2.getRange()));
+    return result;
   }
 
   private void setSemanticdb(Semanticdb.TextDocument semanticdb) {
