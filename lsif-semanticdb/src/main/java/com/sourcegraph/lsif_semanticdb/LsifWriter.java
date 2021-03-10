@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class LsifWriter implements AutoCloseable {
 
   private final Path tmp;
-  private final LsifObjectStream output;
+  private final LsifOutputStream output;
   private final LsifSemanticdbOptions options;
   private final AtomicLong id;
   private final Gson gson;
@@ -22,7 +22,7 @@ public class LsifWriter implements AutoCloseable {
   public LsifWriter(LsifSemanticdbOptions options) throws IOException {
     this.tmp = Files.createTempFile("lsif-semanticdb", "dump.lsif");
     this.output =
-        new LsifObjectStream(
+        new LsifOutputStream(
             new PrintStream(new BufferedOutputStream(Files.newOutputStream(tmp)), false, "utf8"));
     this.options = options;
     this.id = new AtomicLong();

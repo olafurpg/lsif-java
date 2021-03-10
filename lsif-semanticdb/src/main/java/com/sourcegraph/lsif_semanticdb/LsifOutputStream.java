@@ -6,13 +6,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class LsifObjectStream {
+public class LsifOutputStream {
   private final OutputStream out;
   private final ConcurrentLinkedDeque<byte[]> buffer;
   private final AtomicBoolean isFlushing;
   private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
 
-  public LsifObjectStream(OutputStream out) {
+  public LsifOutputStream(OutputStream out) {
     this.out = out;
     buffer = new ConcurrentLinkedDeque<>();
     isFlushing = new AtomicBoolean(false);

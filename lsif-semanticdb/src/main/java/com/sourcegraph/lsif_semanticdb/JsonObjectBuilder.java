@@ -1,33 +1,47 @@
 package com.sourcegraph.lsif_semanticdb;
 
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JsonObjectBuilder {
 
   public final long id;
-  public final JsonObject object;
+  public final JsonObject object = new JsonObject();
+  public final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+  public final JsonGenerator json;
+
+  {
+    try {
+      json = new JsonFactory().createGenerator(baos, JsonEncoding.UTF8);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public final Gson gson;
-  public final LsifObjectStream output;
+  public final LsifOutputStream output;
   public final AtomicBoolean isEmitted;
 
-  public JsonObjectBuilder(Gson gson, LsifObjectStream output) {
+  public JsonObjectBuilder(Gson gson, LsifOutputStream output) {
     this.gson = gson;
     this.output = output;
-    this.object = new JsonObject();
     this.id = -1;
     isEmitted = new AtomicBoolean(false);
   }
 
-  public JsonObjectBuilder(long id, String type, String label, Gson gson, LsifObjectStream output) {
+  public JsonObjectBuilder(long id, String type, String label, Gson gson, LsifOutputStream output) {
     this.gson = gson;
     this.output = output;
     this.id = id;
-    this.object = new JsonObject();
     putNumber("id", id);
     putString("type", type);
     putString("label", label);
@@ -35,7 +49,12 @@ public class JsonObjectBuilder {
   }
 
   public JsonObjectBuilder putString(String key, String value) {
-    object.add(key, new JsonPrimitive(value));
+    try {
+      json.writeStringField(key, value);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    //    object.add(key, new JsonPrimitive(value));
     return this;
   }
 
