@@ -77,6 +77,7 @@ public class LsifSemanticdb {
       }
     }
     writer.emitContains(doc.id, rangeIds);
+    writer.flush();
     return documentId;
   }
 

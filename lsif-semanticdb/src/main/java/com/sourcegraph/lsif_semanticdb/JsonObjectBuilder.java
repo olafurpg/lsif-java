@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JsonObjectBuilder {
@@ -12,18 +12,18 @@ public class JsonObjectBuilder {
   public final long id;
   public final JsonObject object;
   public final Gson gson;
-  public final PrintStream output;
+  public final LsifObjectStream output;
   public final AtomicBoolean isEmitted;
 
-  public JsonObjectBuilder(Gson gson, PrintStream output) {
+  public JsonObjectBuilder(Gson gson, LsifObjectStream output) {
     this.gson = gson;
     this.output = output;
     this.object = new JsonObject();
     this.id = -1;
-    isEmitted = new AtomicBoolean();
+    isEmitted = new AtomicBoolean(false);
   }
 
-  public JsonObjectBuilder(long id, String type, String label, Gson gson, PrintStream output) {
+  public JsonObjectBuilder(long id, String type, String label, Gson gson, LsifObjectStream output) {
     this.gson = gson;
     this.output = output;
     this.id = id;
@@ -31,7 +31,7 @@ public class JsonObjectBuilder {
     putNumber("id", id);
     putString("type", type);
     putString("label", label);
-    isEmitted = new AtomicBoolean();
+    isEmitted = new AtomicBoolean(false);
   }
 
   public JsonObjectBuilder putString(String key, String value) {
@@ -69,7 +69,8 @@ public class JsonObjectBuilder {
       throw new IllegalStateException(gson.toJson(this));
     }
     if (isEmitted.compareAndSet(false, true)) {
-      output.println(gson.toJson(object));
+      byte[] bytes = gson.toJson(object).getBytes(StandardCharsets.UTF_8);
+      output.write(bytes);
       return true;
     } else {
       return false;
