@@ -1,5 +1,6 @@
 package com.sourcegraph.lsif_semanticdb;
 
+import com.sourcegraph.lsif_protocol.LsifToolInfo;
 import java.nio.file.Path;
 import java.util.List;
 

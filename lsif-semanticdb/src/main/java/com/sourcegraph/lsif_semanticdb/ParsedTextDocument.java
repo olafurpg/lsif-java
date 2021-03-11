@@ -5,14 +5,15 @@ import com.sourcegraph.semanticdb_javac.Semanticdb;
 import java.nio.file.Path;
 import java.util.*;
 
-public class LsifDocument {
+public class ParsedTextDocument {
   public final Path semanticdbPath;
   public Semanticdb.TextDocument semanticdb;
   public long id;
   public final Map<String, Semanticdb.SymbolInformation> symbols;
   public final Map<String, ResultIds> localSymbols;
 
-  public LsifDocument(Path semanticdbPath, Semanticdb.TextDocument semanticdb, Path sourceroot) {
+  public ParsedTextDocument(
+      Path semanticdbPath, Semanticdb.TextDocument semanticdb, Path sourceroot) {
     this.semanticdbPath = semanticdbPath;
     this.symbols = new HashMap<>();
     this.localSymbols = new HashMap<>();

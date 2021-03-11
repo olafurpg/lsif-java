@@ -8,7 +8,6 @@ import com.jsoniter.spi.DecodingMode;
 import com.jsoniter.spi.TypeLiteral;
 import com.jsoniter.static_codegen.StaticCodegenConfig;
 import java.util.List;
-import java.util.Map;
 
 public class LsifCodegenConfig implements StaticCodegenConfig {
 
@@ -24,13 +23,20 @@ public class LsifCodegenConfig implements StaticCodegenConfig {
   public TypeLiteral[] whatToCodegen() {
     return new TypeLiteral[] {
       // generic types, need to use this syntax
-      new TypeLiteral<List<Integer>>() {},
-      new TypeLiteral<List<Project>>() {},
-      new TypeLiteral<Map<String, Object>>() {},
+      new TypeLiteral<List<Long>>() {},
+      new TypeLiteral<List<LsifHoverResult.Content>>() {},
       // array
-      TypeLiteral.create(int[].class),
+      TypeLiteral.create(String[].class),
+      TypeLiteral.create(Long.class),
       // object
-      TypeLiteral.create(Project.class)
+      TypeLiteral.create(LsifProject.class),
+      TypeLiteral.create(LsifToolInfo.class),
+      TypeLiteral.create(LsifMetaData.class),
+      TypeLiteral.create(LsifContainsEdge.class),
+      TypeLiteral.create(LsifMultiEdge.class),
+      TypeLiteral.create(LsifHoverResult.class),
+      TypeLiteral.create(LsifHoverResult.Content.class),
+      TypeLiteral.create(LsifHoverResult.Result.class),
     };
   }
 }

@@ -1,18 +1,37 @@
 package com.sourcegraph.lsif_semanticdb;
 
 import com.google.gson.*;
+import com.jsoniter.output.JsonStream;
+import com.sourcegraph.lsif_protocol.LsifContainsEdge;
+import com.sourcegraph.lsif_protocol.LsifDocument;
+import com.sourcegraph.lsif_protocol.LsifHoverResult;
+import com.sourcegraph.lsif_protocol.LsifHoverResult.Content;
+import com.sourcegraph.lsif_protocol.LsifHoverResult.Result;
+import com.sourcegraph.lsif_protocol.LsifItemEdge;
+import com.sourcegraph.lsif_protocol.LsifMetaData;
+import com.sourcegraph.lsif_protocol.LsifEdge;
+import com.sourcegraph.lsif_protocol.LsifNode;
+import com.sourcegraph.lsif_protocol.LsifObject;
+import com.sourcegraph.lsif_protocol.LsifPosition;
+import com.sourcegraph.lsif_protocol.LsifProject;
+import com.sourcegraph.lsif_protocol.LsifRange;
 import com.sourcegraph.semanticdb_javac.Semanticdb;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LsifWriter implements AutoCloseable {
 
+  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
   private final Path tmp;
   private final LsifOutputStream output;
   private final LsifSemanticdbOptions options;
@@ -30,50 +49,83 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public void emitMetaData() {
-    vertex("metaData")
-        .putString("version", "0.4.3")
-        .putString("projectRoot", options.sourceroot.toUri().toString())
-        .putString("positionEncoding", "utf-16")
-        .putElement(
-            "toolInfo",
-            jsonObject()
-                .putString("name", options.toolInfo.name)
-                .putString("version", options.toolInfo.version)
-                .putElement("args", jsonArray(options.toolInfo.args))
-                .build())
-        .emit();
+    emitObject(
+        new LsifMetaData(
+            nextId(), "0.4.3", options.sourceroot.toUri().toString(), options.toolInfo));
   }
 
   public long emitProject(String language) {
-    return vertex("project").putString("kind", language).emit();
+    long id = nextId();
+    emitObject(new LsifProject(id, language));
+    return id;
   }
 
-  public long emitDocument(LsifDocument doc) {
-    return vertex("document")
-        .putString("uri", doc.semanticdb.getUri())
-        .putString("language", doc.semanticdb.getLanguage().toString().toLowerCase())
-        .emit();
+  public long emitDocument(ParsedTextDocument doc) {
+    long id = nextId();
+    emitObject(
+        new LsifDocument(
+            id, doc.semanticdb.getUri(), doc.semanticdb.getLanguage().toString().toLowerCase()));
+    return id;
   }
 
-  public <T extends Number> void emitContains(long outV, Iterable<T> inVs) {
-    edge("contains").putNumber("outV", outV).putElement("inVs", jsonArray(inVs)).emit();
+  public void emitContains(long outV, List<Long> inVs) {
+    emitObject(new LsifContainsEdge(nextId(), outV, inVs));
   }
 
   public long emitRange(Semanticdb.Range range) {
-    return vertex("range")
-        .putElement(
-            "start",
-            jsonObject()
-                .putNumber("line", range.getStartLine())
-                .putNumber("character", range.getStartCharacter())
-                .build())
-        .putElement(
-            "end",
-            jsonObject()
-                .putNumber("line", range.getEndLine())
-                .putNumber("character", range.getEndCharacter())
-                .build())
-        .emit();
+    long id = nextId();
+    emitObject(
+        new LsifRange(
+            id,
+            new LsifPosition(range.getStartLine(), range.getStartCharacter()),
+            new LsifPosition(range.getEndLine(), range.getEndCharacter())));
+    return id;
+  }
+
+  public long emitResultSet() {
+    long id = nextId();
+    emitObject(new LsifNode(id, "vertex", "resultSet"));
+    return id;
+  }
+
+  public void emitNext(long outV, long inV) {
+    emitObject(new LsifEdge(nextId(), "next", outV, inV));
+  }
+
+  public LsifNode emitReferenceResult() {
+    return new LsifNode(nextId(), "vertex", "referenceResult");
+  }
+
+  public LsifNode emitDefinitionResult() {
+    return new LsifNode(nextId(), "vertex", "definitionResult");
+  }
+
+  public void emitDefinitionEdge(long outV, long inV) {
+    emitObject(new LsifEdge(nextId(), "textDocument/definition", outV, inV));
+  }
+
+  public void emitReferenceEdge(long outV, long inV) {
+    emitObject(new LsifEdge(nextId(), "textDocument/reference", outV, inV));
+  }
+
+  public void emitHoverEdge(long outV, long inV) {
+    emitObject(new LsifEdge(nextId(), "textDocument/hover", outV, inV));
+  }
+
+  public long emitHoverResult(Semanticdb.Language language, String value) {
+    long id = nextId();
+    emitObject(
+        new LsifHoverResult(
+            id,
+            new Result(
+                Collections.singletonList(
+                    new Content(language.toString().toLowerCase(Locale.ROOT), value)))));
+
+    return id;
+  }
+
+  public void emitItem(long outV, long inV, long document) {
+    emitObject(new LsifItemEdge(nextId(), outV, Collections.singletonList(inV), document));
   }
 
   public void build() throws IOException {
@@ -98,97 +150,17 @@ public class LsifWriter implements AutoCloseable {
     return id.incrementAndGet();
   }
 
-  public long emitResultSet() {
-    return vertex("resultSet").emit();
-  }
-
-  public void emitNext(long outV, long inV) {
-    edge("next").putNumber("outV", outV).putNumber("inV", inV).emit();
-  }
-
-  public JsonObjectBuilder emitReferenceResult() {
-    return vertex("referenceResult");
-  }
-
-  public JsonObjectBuilder emitDefinitionResult() {
-    return vertex("definitionResult");
-  }
-
-  public void emitDefinitionEdge(long outV, long inV) {
-    edge("textDocument/definition").putOutIn(outV, inV).emit();
-  }
-
-  public void emitReferenceEdge(long outV, long inV) {
-    edge("textDocument/reference").putOutIn(outV, inV).emit();
-  }
-
-  public long emitHoverResult(Semanticdb.Language language, String value) {
-    return vertex("hoverResult")
-        .putElement(
-            "result",
-            jsonObject()
-                .putElement(
-                    "contents",
-                    jsonArray(
-                        jsonObject()
-                            .putString("language", language.toString().toLowerCase())
-                            .putString("value", value)
-                            .build()))
-                .build())
-        .emit();
-  }
-
-  public void emitHoverEdge(long outV, long inV) {
-    edge("textDocument/hover").putOutIn(outV, inV).emit();
-  }
-
-  public void emitItem(long outV, long inV, long document) {
-    edge("item")
-        .putNumber("outV", outV)
-        .putElement("inVs", jsonArray(new JsonPrimitive(inV)))
-        .putNumber("document", document)
-        .emit();
-  }
-
-  private JsonArray jsonArray(JsonElement value) {
-    JsonArray array = new JsonArray();
-    array.add(value);
-    return array;
-  }
-
-  private JsonArray jsonArray(JsonElement[] values) {
-    JsonArray array = new JsonArray();
-    for (JsonElement value : values) {
-      array.add(value);
-    }
-    return array;
-  }
-
-  private <T extends Number> JsonArray jsonArray(Iterable<T> values) {
-    JsonArray array = new JsonArray();
-    for (Number value : values) {
-      array.add(value);
-    }
-    return array;
-  }
-
-  private JsonArray jsonArray(String[] values) {
-    JsonArray array = new JsonArray();
-    for (String value : values) {
-      array.add(value);
-    }
-    return array;
-  }
-
-  private JsonObjectBuilder jsonObject() {
-    return new JsonObjectBuilder(gson, output);
-  }
-
   public void flush() {
     try {
       output.flush();
     } catch (IOException e) {
       options.reporter.error(e);
     }
+  }
+
+  public void emitObject(LsifObject object) {
+    baos.reset();
+    JsonStream.serialize(object, baos);
+    output.write(baos.toByteArray());
   }
 }

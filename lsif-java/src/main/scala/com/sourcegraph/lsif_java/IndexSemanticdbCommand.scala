@@ -1,10 +1,7 @@
 package com.sourcegraph.lsif_java
 
-import com.sourcegraph.lsif_semanticdb.{
-  LsifSemanticdb,
-  LsifSemanticdbOptions,
-  LsifToolInfo
-}
+import com.sourcegraph.lsif_protocol.LsifToolInfo
+import com.sourcegraph.lsif_semanticdb.{LsifSemanticdb, LsifSemanticdbOptions}
 
 import scala.jdk.CollectionConverters._
 import java.nio.file.{Path, Paths}

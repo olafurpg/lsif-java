@@ -2,6 +2,7 @@ import scala.xml.{Node => XmlNode, NodeSeq => XmlNodeSeq, _}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import java.io.File
 import java.util.Properties
+import java.util.concurrent.atomic.{AtomicInteger, AtomicIntegerArray}
 import scala.collection.mutable.ListBuffer
 
 lazy val V =
@@ -123,6 +124,7 @@ lazy val protocol = project
     libraryDependencies += "com.jsoniter" % "jsoniter" % "0.9.23"
   )
 
+val codegenCache = new AtomicInteger()
 lazy val lsif = project
   .in(file("lsif-semanticdb"))
   .settings(
@@ -131,32 +133,28 @@ lazy val lsif = project
     sourceGenerators.in(Compile) +=
       Def
         .task[Seq[File]] {
-          val a = compile.in(protocol, Compile).value
-          println(
-            "COMPILATION " +
-              a.readCompilations()
-                .getAllCompilations
-                .mkString("Array(", ", ", ")")
-          )
-          println("COMPILATION " + a.readSourceInfos().getAllSourceInfos)
-          println("STAMPS " + a.readStamps())
-          import scala.collection.JavaConverters._
-          println("STAMPS " + a.readStamps().getAllSourceStamps.asScala)
+          val out = sourceManaged.in(Compile).value
+          val compileAnalysis = compile.in(protocol, Compile).value
+          val stamp = compileAnalysis.readStamps().##
           val cp = fullClasspath.in(protocol, Compile).value.map(_.data)
           val dir = sourceDirectory.in(protocol, Compile).value / "java"
-          val out = sourceManaged.in(Compile).value
-          out.mkdirs()
-          new ForkRun(ForkOptions().withWorkingDirectory(dir))
-            .run(
-              "com.jsoniter.static_codegen.StaticCodegen",
-              cp,
-              List(
-                "com.sourcegraph.lsif_protocol.LsifCodegenConfig",
-                out.toString
-              ),
-              streams.value.log
-            )
-            .get
+          val log = streams.value.log
+          if (codegenCache.get() != stamp) {
+            IO.delete(out)
+            out.mkdirs()
+            new ForkRun(ForkOptions().withWorkingDirectory(dir))
+              .run(
+                "com.jsoniter.static_codegen.StaticCodegen",
+                cp,
+                List(
+                  "com.sourcegraph.lsif_protocol.LsifCodegenConfig",
+                  out.toString
+                ),
+                log
+              )
+              .get
+          }
+          codegenCache.set(stamp)
           (out ** (-DirectoryFilter)).get
         }
         .taskValue,

@@ -1,16 +1,29 @@
 package tests
 
+import com.jsoniter.any.Any
+import com.jsoniter.output.JsonStream
+import com.sourcegraph.lsif_protocol.{LsifCodegenConfig, LsifMetaData}
 import com.sourcegraph.lsif_java.LsifJava
 import moped.testkit.{FileLayout, MopedSuite}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicReference
 import scala.meta.internal.io.FileIO
 import scala.meta.io.AbsolutePath
 import scala.sys.process.Process
 
 class IndexSemanticdbCommandSuite extends MopedSuite(LsifJava.app) {
+
+  test("jsoniter".ignore) {
+    new LsifCodegenConfig().setup()
+    val project = new LsifMetaData()
+    val json = JsonStream.serialize(project)
+    pprint.log(json)
+//    pprint.log(JsonStream.serialize(new User(42, "Susan")))
+  }
+
   test("basic") {
     val targetroot = temporaryDirectory().resolve("targetroot")
     val output = temporaryDirectory().resolve("dump.lsif")

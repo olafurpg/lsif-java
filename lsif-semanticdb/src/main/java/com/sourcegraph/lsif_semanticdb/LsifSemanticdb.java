@@ -48,7 +48,7 @@ public class LsifSemanticdb {
     return parseTextDocument(path).map(this::processDocument);
   }
 
-  private Long processDocument(LsifDocument doc) {
+  private Long processDocument(ParsedTextDocument doc) {
     long documentId = writer.emitDocument(doc);
     doc.id = documentId;
     ResultSets results = new ResultSets(globals, writer);
@@ -76,17 +76,17 @@ public class LsifSemanticdb {
         writer.emitHoverEdge(ids.resultSet, hoverId);
       }
     }
-    writer.emitContains(doc.id, rangeIds);
+    writer.emitContains(doc.id, new ArrayList<>(rangeIds));
     writer.flush();
     return documentId;
   }
 
-  private Stream<LsifDocument> parseTextDocument(Path semanticdbPath) {
+  private Stream<ParsedTextDocument> parseTextDocument(Path semanticdbPath) {
     try {
       return Semanticdb.TextDocuments.parseFrom(Files.readAllBytes(semanticdbPath))
           .getDocumentsList().stream()
           .filter(sdb -> !sdb.getOccurrencesList().isEmpty())
-          .map(sdb -> new LsifDocument(semanticdbPath, sdb, options.sourceroot));
+          .map(sdb -> new ParsedTextDocument(semanticdbPath, sdb, options.sourceroot));
     } catch (IOException e) {
       options.reporter.error(e);
       return Stream.empty();
