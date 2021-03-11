@@ -23,17 +23,14 @@ public class LsifCodegenConfig implements StaticCodegenConfig {
   @Override
   public TypeLiteral[] whatToCodegen() {
     return new TypeLiteral[] {
-        // generic types, need to use this syntax
-        new TypeLiteral<List<Integer>>() {
-        },
-        new TypeLiteral<List<Project>>() {
-        },
-        new TypeLiteral<Map<String, Object>>() {
-        },
-        // array
-        TypeLiteral.create(int[].class),
-        // object
-        TypeLiteral.create(Project.class)
+      // generic types, need to use this syntax
+      new TypeLiteral<List<Integer>>() {},
+      new TypeLiteral<List<Project>>() {},
+      new TypeLiteral<Map<String, Object>>() {},
+      // array
+      TypeLiteral.create(int[].class),
+      // object
+      TypeLiteral.create(Project.class)
     };
   }
 }

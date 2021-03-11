@@ -114,18 +114,43 @@ lazy val plugin = project
   )
   .dependsOn(semanticdb)
 
+lazy val protocol = project
+  .in(file("lsif-protocol"))
+  .settings(
+    moduleName := "lsif-protocol",
+    javaToolchainVersion := "1.8",
+    javaOnlySettings,
+    libraryDependencies += "com.jsoniter" % "jsoniter" % "0.9.23"
+  )
+
 lazy val lsif = project
   .in(file("lsif-semanticdb"))
   .settings(
     moduleName := "lsif-semanticdb",
     javaToolchainVersion := "1.8",
+    sourceGenerators.in(Compile) +=
+      Def
+        .task[Seq[File]] {
+          val cp = fullClasspath.in(protocol, Compile).value.map(_.data)
+          val dir = sourceDirectory.in(protocol, Compile).value / "java"
+          println(s"DIR: $dir")
+          val x = new ForkRun(ForkOptions().withWorkingDirectory(dir)).run(
+            "com.jsoniter.static_codegen.StaticCodegen",
+            cp,
+            List("com.sourcegraph.lsif_protocol.LsifCodegenConfig"),
+            streams.value.log
+          )
+          println(x)
+          Nil
+        }
+        .taskValue,
     javaOnlySettings,
     libraryDependencies += "com.jsoniter" % "jsoniter" % "0.9.23",
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.6",
     libraryDependencies +=
       "com.fasterxml.jackson.core" % "jackson-core" % "2.12.2"
   )
-  .dependsOn(semanticdb)
+  .dependsOn(semanticdb, protocol)
 
 lazy val cli = project
   .in(file("lsif-java"))
