@@ -2,6 +2,9 @@ package com.sourcegraph.lsif_semanticdb;
 
 import com.google.gson.*;
 import com.jsoniter.output.JsonStream;
+import com.jsoniter.spi.Config;
+import com.jsoniter.spi.JsoniterSpi;
+import com.sourcegraph.lsif_protocol.LsifCodegenConfig;
 import com.sourcegraph.lsif_protocol.LsifContainsEdge;
 import com.sourcegraph.lsif_protocol.LsifDocument;
 import com.sourcegraph.lsif_protocol.LsifHoverResult;
@@ -24,19 +27,24 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.LongStream;
 
 public class LsifWriter implements AutoCloseable {
 
-  private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+  private final ThreadLocal<ByteArrayOutputStream> baos =
+      ThreadLocal.withInitial(ByteArrayOutputStream::new);
   private final Path tmp;
   private final LsifOutputStream output;
   private final LsifSemanticdbOptions options;
   private final AtomicLong id;
   private final Gson gson;
+  private final Config jsoniterConfig;
 
   public LsifWriter(LsifSemanticdbOptions options) throws IOException {
     this.tmp = Files.createTempFile("lsif-semanticdb", "dump.lsif");
@@ -46,6 +54,8 @@ public class LsifWriter implements AutoCloseable {
     this.options = options;
     this.id = new AtomicLong();
     this.gson = new Gson();
+    new LsifCodegenConfig().setup();
+    jsoniterConfig = JsoniterSpi.getCurrentConfig();
   }
 
   public void emitMetaData() {
@@ -69,7 +79,11 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public void emitContains(long outV, List<Long> inVs) {
-    emitObject(new LsifContainsEdge(nextId(), outV, inVs));
+    long[] longs = new long[inVs.size()];
+    for (int i = 0; i < inVs.size(); i++) {
+      longs[i] = inVs.get(i);
+    }
+    emitObject(new LsifContainsEdge(nextId(), outV, longs));
   }
 
   public long emitRange(Semanticdb.Range range) {
@@ -125,7 +139,8 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public void emitItem(long outV, long inV, long document) {
-    emitObject(new LsifItemEdge(nextId(), outV, Collections.singletonList(inV), document));
+    LsifItemEdge item = new LsifItemEdge(nextId(), outV, inV, document);
+    emitObject(item);
   }
 
   public void build() throws IOException {
@@ -159,8 +174,9 @@ public class LsifWriter implements AutoCloseable {
   }
 
   public void emitObject(LsifObject object) {
-    baos.reset();
-    JsonStream.serialize(object, baos);
-    output.write(baos.toByteArray());
+    ByteArrayOutputStream bytes = baos.get();
+    bytes.reset();
+    JsonStream.serialize(jsoniterConfig, object, bytes);
+    output.write(bytes.toByteArray());
   }
 }

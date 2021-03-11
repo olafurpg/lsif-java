@@ -9,11 +9,11 @@ public class LsifContainsEdge extends LsifObject {
   public String label = "contains";
 
   public long outV;
-  public List<Long> inV;
+  public long[] inV;
 
   public LsifContainsEdge() {}
 
-  public LsifContainsEdge(long id, long outV, List<Long> inV) {
+  public LsifContainsEdge(long id, long outV, long[] inV) {
     this.id = id;
     this.outV = outV;
     this.inV = inV;

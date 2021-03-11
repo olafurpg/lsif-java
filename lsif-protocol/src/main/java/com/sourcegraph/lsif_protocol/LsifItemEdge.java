@@ -9,15 +9,35 @@ public class LsifItemEdge extends LsifObject {
   public String label = "item";
 
   public long outV;
-  public List<Long> inVs;
+  public long[] inVs;
   public long document;
 
   public LsifItemEdge() {}
 
-  public LsifItemEdge(long id, long outV, List<Long> inVs, long document) {
+  public LsifItemEdge(long id, long outV, long inVs, long document) {
     this.id = id;
     this.outV = outV;
-    this.inVs = inVs;
+    this.inVs = new long[] {inVs};
     this.document = document;
+  }
+
+  @Override
+  public String toString() {
+    return "LsifItemEdge{"
+        + "id="
+        + id
+        + ", type='"
+        + type
+        + '\''
+        + ", label='"
+        + label
+        + '\''
+        + ", outV="
+        + outV
+        + ", inVs="
+        + inVs
+        + ", document="
+        + document
+        + '}';
   }
 }
