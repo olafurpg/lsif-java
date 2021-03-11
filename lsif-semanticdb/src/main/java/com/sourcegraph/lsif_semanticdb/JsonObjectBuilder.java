@@ -38,12 +38,7 @@ public class JsonObjectBuilder {
   }
 
   public JsonObjectBuilder putString(String key, String value) {
-    try {
-      json.writeStringField(key, value);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    //    object.add(key, new JsonPrimitive(value));
+    object.add(key, new JsonPrimitive(value));
     return this;
   }
 
@@ -77,7 +72,10 @@ public class JsonObjectBuilder {
       throw new IllegalStateException(gson.toJson(this));
     }
     if (isEmitted.compareAndSet(false, true)) {
-      byte[] bytes = gson.toJson(object).getBytes(StandardCharsets.UTF_8);
+      //      byte[] bytes = gson.toJson(object).getBytes(StandardCharsets.UTF_8);
+      byte[] bytes =
+          "asdwfasdfasdklfjasdkfljasdlkfjasdlkasdflakjsdflkajsdfklj"
+              .getBytes(StandardCharsets.UTF_8);
       output.write(bytes);
       return true;
     } else {
