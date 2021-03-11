@@ -214,6 +214,8 @@ lazy val cli = project
         .taskValue,
     nativeImageOptions ++=
       List(
+        "--no-fallback",
+        s"-H:ReflectionConfigurationFiles=${target.value / "native-image-configs" / "reflect-config.json"}",
         "-H:IncludeResources=^semanticdb-.*jar$",
         "--allow-incomplete-classpath"
       ),
