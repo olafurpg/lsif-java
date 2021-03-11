@@ -212,7 +212,11 @@ lazy val cli = project
           propsFile :: copiedJars.toList
         }
         .taskValue,
-    nativeImageOptions ++= List("-H:IncludeResources=^semanticdb-.*jar$"),
+    nativeImageOptions ++=
+      List(
+        "-H:IncludeResources=^semanticdb-.*jar$",
+        "--allow-incomplete-classpath"
+      ),
     nativeImageOutput := target.in(NativeImage).value / "lsif-java"
   )
   .enablePlugins(NativeImagePlugin, BuildInfoPlugin)

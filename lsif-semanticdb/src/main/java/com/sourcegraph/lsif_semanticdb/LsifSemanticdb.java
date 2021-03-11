@@ -36,8 +36,7 @@ public class LsifSemanticdb {
     List<Path> files = SemanticdbWalker.findSemanticdbFiles(options);
     if (options.reporter.hasErrors()) return;
 
-    List<Long> documentIds =
-        files.parallelStream().flatMap(this::processPath).collect(Collectors.toList());
+    List<Long> documentIds = files.stream().flatMap(this::processPath).collect(Collectors.toList());
 
     writer.emitContains(projectId, documentIds);
 
