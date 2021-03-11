@@ -131,17 +131,33 @@ lazy val lsif = project
     sourceGenerators.in(Compile) +=
       Def
         .task[Seq[File]] {
+          val a = compile.in(protocol, Compile).value
+          println(
+            "COMPILATION " +
+              a.readCompilations()
+                .getAllCompilations
+                .mkString("Array(", ", ", ")")
+          )
+          println("COMPILATION " + a.readSourceInfos().getAllSourceInfos)
+          println("STAMPS " + a.readStamps())
+          import scala.collection.JavaConverters._
+          println("STAMPS " + a.readStamps().getAllSourceStamps.asScala)
           val cp = fullClasspath.in(protocol, Compile).value.map(_.data)
           val dir = sourceDirectory.in(protocol, Compile).value / "java"
-          println(s"DIR: $dir")
-          val x = new ForkRun(ForkOptions().withWorkingDirectory(dir)).run(
-            "com.jsoniter.static_codegen.StaticCodegen",
-            cp,
-            List("com.sourcegraph.lsif_protocol.LsifCodegenConfig"),
-            streams.value.log
-          )
-          println(x)
-          Nil
+          val out = sourceManaged.in(Compile).value
+          out.mkdirs()
+          new ForkRun(ForkOptions().withWorkingDirectory(dir))
+            .run(
+              "com.jsoniter.static_codegen.StaticCodegen",
+              cp,
+              List(
+                "com.sourcegraph.lsif_protocol.LsifCodegenConfig",
+                out.toString
+              ),
+              streams.value.log
+            )
+            .get
+          (out ** (-DirectoryFilter)).get
         }
         .taskValue,
     javaOnlySettings,

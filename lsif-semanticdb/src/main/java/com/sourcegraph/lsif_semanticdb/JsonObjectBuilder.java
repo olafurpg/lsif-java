@@ -38,12 +38,12 @@ public class JsonObjectBuilder {
   }
 
   public JsonObjectBuilder putString(String key, String value) {
-    object.add(key, new JsonPrimitive(value));
+    //    object.add(key, new JsonPrimitive(value));
     return this;
   }
 
   public JsonObjectBuilder putElement(String key, JsonElement value) {
-    object.add(key, value);
+    //    object.add(key, value);
     return this;
   }
 
@@ -54,7 +54,7 @@ public class JsonObjectBuilder {
   }
 
   public <T extends Number> JsonObjectBuilder putNumber(String key, T value) {
-    object.add(key, new JsonPrimitive(value));
+    //    object.add(key, new JsonPrimitive(value));
     return this;
   }
 
