@@ -72,10 +72,7 @@ public class JsonObjectBuilder {
       throw new IllegalStateException(gson.toJson(this));
     }
     if (isEmitted.compareAndSet(false, true)) {
-      //      byte[] bytes = gson.toJson(object).getBytes(StandardCharsets.UTF_8);
-      byte[] bytes =
-          "asdwfasdfasdklfjasdkfljasdlkfjasdlkasdflakjsdflkajsdfklj"
-              .getBytes(StandardCharsets.UTF_8);
+      byte[] bytes = gson.toJson(object).getBytes(StandardCharsets.UTF_8);
       output.write(bytes);
       return true;
     } else {
