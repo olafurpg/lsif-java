@@ -37,15 +37,15 @@ public class LsifSemanticdb {
     if (options.reporter.hasErrors()) return;
 
     List<Long> documentIds =
-        files.stream()
-            .flatMap(this::parseTextDocument)
-            .parallel()
-            .map(this::processDocument)
-            .collect(Collectors.toList());
+        files.parallelStream().flatMap(this::processPath).collect(Collectors.toList());
 
     writer.emitContains(projectId, documentIds);
 
     writer.build();
+  }
+
+  private Stream<Long> processPath(Path path) {
+    return parseTextDocument(path).map(this::processDocument);
   }
 
   private Long processDocument(LsifDocument doc) {
