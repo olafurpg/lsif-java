@@ -1,0 +1,7 @@
+CREATE TABLE packages (
+ id VARCHAR() NOT NULL PRIMARY KEY,
+);
+
+CREATE TABLE indexed_packages (
+ id VARCHAR() NOT NULL PRIMARY KEY,
+);

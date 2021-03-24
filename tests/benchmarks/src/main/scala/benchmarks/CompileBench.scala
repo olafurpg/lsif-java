@@ -10,8 +10,8 @@ import scala.meta.inputs.Input
 import scala.meta.internal.io.FileIO
 
 import com.sourcegraph.io.DeleteVisitor
+import com.sourcegraph.package_server.Dependencies
 import org.openjdk.jmh.annotations._
-import tests.Dependencies
 import tests.TestCompiler
 
 @State(Scope.Benchmark)
@@ -71,7 +71,11 @@ object CompileBench {
     deps
       .sources
       .foreach { source =>
-        FileIO.withJarFileSystem(source, create = false, close = true) { root =>
+        FileIO.withJarFileSystem(
+          scala.meta.io.AbsolutePath(source),
+          create = false,
+          close = true
+        ) { root =>
           val files =
             FileIO
               .listAllFilesRecursively(root)

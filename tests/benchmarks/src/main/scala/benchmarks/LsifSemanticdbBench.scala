@@ -6,8 +6,8 @@ import java.util.concurrent.TimeUnit
 
 import com.sourcegraph.io.DeleteVisitor
 import com.sourcegraph.lsif_java.LsifJava
+import com.sourcegraph.package_server.Dependencies
 import org.openjdk.jmh.annotations._
-import tests.Dependencies
 import tests.TestCompiler
 
 @State(Scope.Benchmark)

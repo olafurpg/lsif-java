@@ -190,6 +190,35 @@ lazy val cli = project
   )
   .enablePlugins(NativeImagePlugin, BuildInfoPlugin)
   .dependsOn(lsif)
+commands +=
+  Command.command("dockerfile") { s =>
+    "server/dockerfileUpdate" :: "publish" :: s
+  }
+
+lazy val server = project
+  .in(file("lsif-java-server"))
+  .settings(
+    moduleName := "lsif-java-server",
+    mainClass.in(Compile) :=
+      Some("com.sourcegraph.package_server.PackageServer"),
+    TaskKey[Unit]("dockerfileUpdate") := {
+      val x = dynverGitDescribeOutput.value.get
+      println("DIRTY: " + x)
+      require(x.dirtySuffix.value.isEmpty(), x.dirtySuffix.value)
+      val template = IO.read(file("Dockerfile.template"))
+      IO.write(file("Dockerfile"), template.replace("VERSION", version.value))
+    },
+    libraryDependencies ++=
+      List(
+        "org.flywaydb" % "flyway-core" % "7.7.1",
+        "org.postgresql" % "postgresql" % "42.2.14",
+        "com.lihaoyi" %% "requests" % "0.6.5",
+        "com.lihaoyi" %% "cask" % "0.7.8",
+        "io.get-coursier" %% "coursier" % V.coursier
+      )
+  )
+  .enablePlugins(AssemblyPlugin)
+  .dependsOn(cli)
 
 commands +=
   Command.command("nativeImageProfiled") { s =>
@@ -264,7 +293,7 @@ lazy val unit = project
       ),
     buildInfoPackage := "tests"
   )
-  .dependsOn(plugin, cli)
+  .dependsOn(plugin, cli, server)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val buildTools = project

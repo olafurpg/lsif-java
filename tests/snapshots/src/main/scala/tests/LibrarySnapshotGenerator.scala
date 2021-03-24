@@ -3,6 +3,7 @@ package tests
 import java.nio.charset.StandardCharsets
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.meta.inputs.Input
@@ -11,6 +12,7 @@ import scala.meta.io.AbsolutePath
 
 import com.sourcegraph.io.DeleteVisitor
 import com.sourcegraph.lsif_java.SemanticdbPrinters
+import com.sourcegraph.package_server.Dependencies
 import coursier.core.Repository
 import coursier.maven.MavenRepository
 
@@ -41,52 +43,51 @@ class LibrarySnapshotGenerator extends SnapshotGenerator {
 
       val compiler = new TestCompiler(deps.classpathSyntax, options, targetroot)
       val timer = new Timer()
-      val toIndex = deps
-        .sources
-        .filter(p => isIncluded(p.toNIO.getFileName.toString))
+      val toIndex = deps.sources.filter(p => isIncluded(p.getFileName.toString))
       toIndex.foreach { source =>
         val metrics = compileSourcesJar(source, compiler)
         val i = counter.incrementAndGet()
         val message =
           f"$i%3s/${toIndex.size} jars; $timer%6s; " +
             f"${metrics.occurrenceCount}%,.0f occurrences; " +
-            f"${metrics.linesOfCode}%,.0f loc; " +
-            f"${source.toNIO.getFileName}"
+            f"${metrics.linesOfCode}%,.0f loc; " + f"${source.getFileName}"
         println(message)
       }
       Files.walkFileTree(targetroot, new DeleteVisitor())
     }
 
     private def compileSourcesJar(
-        source: AbsolutePath,
+        source: Path,
         compiler: TestCompiler
     ): IndexMetrics = {
       var occurrenceCount, linesOfCode = 0
-      FileIO.withJarFileSystem(source, create = false, close = true) { root =>
-        val inputs =
-          FileIO
-            .listAllFilesRecursively(root)
-            .iterator
-            .filter(file => javaPattern.matches(file.toNIO))
-            .map { file =>
-              val relpath = file.toRelative(root).toString()
-              val text = FileIO.slurp(file, StandardCharsets.UTF_8)
-              linesOfCode += text.linesIterator.size
-              Input.VirtualFile(relpath, text)
-            }
-            .toArray
+      FileIO
+        .withJarFileSystem(AbsolutePath(source), create = false, close = true) {
+          root =>
+            val inputs =
+              FileIO
+                .listAllFilesRecursively(root)
+                .iterator
+                .filter(file => javaPattern.matches(file.toNIO))
+                .map { file =>
+                  val relpath = file.toRelative(root).toString()
+                  val text = FileIO.slurp(file, StandardCharsets.UTF_8)
+                  linesOfCode += text.linesIterator.size
+                  Input.VirtualFile(relpath, text)
+                }
+                .toArray
 
-        val result = compiler.compileSemanticdb(inputs)
-        result
-          .textDocuments
-          .getDocumentsList
-          .forEach { textDocument =>
-            occurrenceCount += textDocument.getOccurrencesCount
-            val print = SemanticdbPrinters.printTextDocument(textDocument)
-            val out = context.expectDirectory.resolve(textDocument.getUri)
-            handler.onSnapshotTest(context, out, () => print)
-          }
-      }
+            val result = compiler.compileSemanticdb(inputs)
+            result
+              .textDocuments
+              .getDocumentsList
+              .forEach { textDocument =>
+                occurrenceCount += textDocument.getOccurrencesCount
+                val print = SemanticdbPrinters.printTextDocument(textDocument)
+                val out = context.expectDirectory.resolve(textDocument.getUri)
+                handler.onSnapshotTest(context, out, () => print)
+              }
+        }
       IndexMetrics(occurrenceCount, linesOfCode)
     }
   }

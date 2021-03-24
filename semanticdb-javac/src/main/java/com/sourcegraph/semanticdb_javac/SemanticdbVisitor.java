@@ -193,6 +193,7 @@ public class SemanticdbVisitor extends TreePathScanner<Void, Void> {
   // =================================================
 
   private Semanticdb.Signature semanticdbSignature(Symbol sym) {
+
     return new SemanticdbSignatures(globals, locals).generateSignature(sym);
   }
 
