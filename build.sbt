@@ -190,6 +190,17 @@ lazy val cli = project
   )
   .enablePlugins(NativeImagePlugin, BuildInfoPlugin)
   .dependsOn(lsif)
+lazy val server = project
+  .in(file("lsif-java-server"))
+  .settings(
+    moduleName := "lsif-java-server",
+    libraryDependencies ++=
+      List(
+        "com.lihaoyi" %% "cask" % "0.7.8",
+        "io.get-coursier" %% "coursier" % V.coursier
+      )
+  )
+  .dependsOn(cli)
 
 commands +=
   Command.command("nativeImageProfiled") { s =>
