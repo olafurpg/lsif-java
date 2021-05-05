@@ -87,6 +87,10 @@ class PackageActor(
     if (isCached(pkg))
       return
     pkg match {
+      case mvn @ MavenPackage(_) =>
+        val deps = Dependencies
+          .resolveDependencies(List(mvn.repr), transitive = false)
+        indexDeps(mvn, deps)
       case JdkPackage(version) =>
         val home = os
           .proc(coursier, "java-home", "--jvm", version)
@@ -103,13 +107,11 @@ class PackageActor(
           case None =>
             throw new IllegalArgumentException(s"no such files: $srcs")
         }
-      case mvn @ MavenPackage(dep) =>
-        val deps = Dependencies
-          .resolveDependencies(List(mvn.repr), transitive = false)
-        indexDeps(mvn, deps)
+      case npm: NpmPackage =>
     }
   }
 
+  private def downloadNpmPackage(npm: NpmPackage): Unit = {}
   private def indexDeps(dep: MavenPackage, deps: Dependencies): Unit = {
     deps
       .sourcesResult
