@@ -7,6 +7,6 @@ RUN git config --global http.postBuffer 1048576000
 RUN curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o /src
 RUN chmod +x /src
 RUN apt-get install --yes npm
-RUN /coursier bootstrap -r sonatype:snapshots com.sourcegraph:packagehub_2.13:0.5.1-22-418ba092-SNAPSHOT -o /packagehub
+RUN /coursier bootstrap -r sonatype:snapshots com.sourcegraph:packagehub_2.13:0.5.1-25-d0bec9b4-SNAPSHOT -o /packagehub
 ENV COURSIER_REPOSITORIES=central|https://maven.google.com/|jitpack
 CMD ["/packagehub.sh"]
