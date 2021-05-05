@@ -141,12 +141,50 @@ class PackageActor(
           sys.error(s"no such file: package.json (${allFiles.mkString(", ")})")
         )
       Files.createDirectories(repo.getParent)
-      Files.move(packageJson.toNIO.getParent, repo)
+      val parent = Paths.get(
+        packageJson
+          .toNIO
+          .getParent
+          .toRealPath()
+          .toString
+          .stripPrefix("/private")
+      )
+      moveDirectory(parent, repo)
       cacheDirectory(npm)
       Files.walkFileTree(tmp, new DeleteVisitor())
       gitInit(repo)
       gitCommitAll(npm.version, repo)
     }
+  }
+  private def moveDirectory(from: Path, to: Path): Unit = {
+    Files.walkFileTree(
+      from,
+      new SimpleFileVisitor[Path] {
+        override def visitFile(
+            file: Path,
+            attrs: BasicFileAttributes
+        ): FileVisitResult = {
+          val relpath = from.relativize(file)
+          Files.copy(
+            file,
+            to.resolve(relpath),
+            StandardCopyOption.REPLACE_EXISTING
+          )
+          FileVisitResult.CONTINUE
+
+        }
+        override def preVisitDirectory(
+            dir: Path,
+            attrs: BasicFileAttributes
+        ): FileVisitResult = {
+          val relpath = from.relativize(dir)
+          val out = to.resolve(relpath)
+          if (!Files.isDirectory(out))
+            Files.createDirectory(out)
+          FileVisitResult.CONTINUE
+        }
+      }
+    )
   }
   private def indexDeps(dep: MavenPackage, deps: Dependencies): Unit = {
     deps
@@ -216,7 +254,11 @@ class PackageActor(
           os.proc("npm", "install").call(cwd = os.Path(sourceroot))
           val tsconfig = sourceroot.resolve("tsconfig.json")
           if (!Files.isRegularFile(tsconfig)) {
-            Files.write(tsconfig, List("{}").asJava)
+            val config = Obj(
+              "include" -> Arr("**/*"),
+              "compilerOptions" -> Obj("allowJs" -> true)
+            )
+            Files.write(tsconfig, List(ujson.write(config, indent = 2)).asJava)
           }
           os.proc("npx", "@olafurpg/lsif-tsc", "-p", sourceroot.toString)
             .call(check = false, stdout = pipe, stderr = pipe)
