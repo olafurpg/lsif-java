@@ -261,7 +261,12 @@ class PackageActor(
             Files.write(tsconfig, List(ujson.write(config, indent = 2)).asJava)
           }
           os.proc("npx", "@olafurpg/lsif-tsc", "-p", sourceroot.toString)
-            .call(check = false, stdout = pipe, stderr = pipe)
+            .call(
+              check = false,
+              stdout = pipe,
+              stderr = pipe,
+              cwd = os.Path(sourceroot)
+            )
             .exitCode
         case _ =>
           val env = LsifJava
