@@ -1,23 +1,21 @@
 package com.sourcegraph.packagehub
 
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.io.PrintStream
-import java.nio.file.FileSystems
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.StandardOpenOption
+import java.io.{ByteArrayOutputStream, File, IOException, PrintStream}
+import java.nio.file.{
+  FileSystems,
+  FileVisitResult,
+  Files,
+  Path,
+  Paths,
+  SimpleFileVisitor,
+  StandardCopyOption,
+  StandardOpenOption
+}
 import java.nio.file.attribute.BasicFileAttributes
-
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
-
 import scala.meta.internal.io.FileIO
 import scala.meta.io.AbsolutePath
-
 import castor.Context
 import castor.SimpleActor
 import com.sourcegraph.io.DeleteVisitor
@@ -25,12 +23,20 @@ import com.sourcegraph.lsif_java.Dependencies
 import com.sourcegraph.lsif_java.LsifJava
 import coursier.core.Dependency
 import moped.reporters.ConsoleReporter
+import org.rauschig.jarchivelib.{
+  ArchiveFormat,
+  ArchiverFactory,
+  CompressionType
+}
+import os.ProcessOutput.Readlines
 import os.Shellable
 import os.SubProcess
 import ujson.Arr
 import ujson.Bool
 import ujson.Obj
 import ujson.Str
+
+import java.net.URL
 
 /**
  * Actor that creates git repos from package sources and (optionally LSIF
@@ -69,7 +75,7 @@ class PackageActor(
   }
   def lsifIndex(msg: Package, lsifUpload: Boolean): Path = {
     commitSources(msg)
-    val dump = indexClasspathArtifact(msg)
+    val dump: Path = lsifIndexPackage(msg)
     if (lsifUpload && Files.isRegularFile(dump)) {
       os.proc(src, "login").call(stdout = os.Pipe, stderr = os.Pipe)
       os.proc(src, "lsif", "upload", "--no-progress", "--repo", msg.path)
@@ -108,17 +114,46 @@ class PackageActor(
             throw new IllegalArgumentException(s"no such files: $srcs")
         }
       case npm: NpmPackage =>
+        commitNpmPackage(npm)
     }
   }
 
-  private def downloadNpmPackage(npm: NpmPackage): Unit = {}
+  private def commitNpmPackage(npm: NpmPackage): Unit = {
+    val repo = packageDir(npm)
+    if (!isCached(npm)) {
+      val tmp = Files.createTempDirectory("packagehub")
+      val filename = tmp.resolve(npm.tarballFilename)
+      val url = os
+        .proc("npm", "info", npm.npmName, "dist.tarball")
+        .call()
+        .out
+        .trim()
+      val in = new URL(url).openStream()
+      try Files.copy(in, filename, StandardCopyOption.REPLACE_EXISTING)
+      finally in.close()
+      ArchiverFactory
+        .createArchiver(new File("archive.tgz"))
+        .extract(filename.toFile, tmp.toFile)
+      val allFiles = FileIO.listAllFilesRecursively(AbsolutePath(tmp))
+      val packageJson = allFiles
+        .find(_.toNIO.endsWith("package.json"))
+        .getOrElse(
+          sys.error(s"no such file: package.json (${allFiles.mkString(", ")})")
+        )
+      Files.createDirectories(repo.getParent)
+      Files.move(packageJson.toNIO.getParent, repo)
+      cacheDirectory(npm)
+      Files.walkFileTree(tmp, new DeleteVisitor())
+      gitInit(repo)
+      gitCommitAll(npm.version, repo)
+    }
+  }
   private def indexDeps(dep: MavenPackage, deps: Dependencies): Unit = {
     deps
       .sourcesResult
       .fullDetailedArtifacts
       .foreach {
         case (dep, _, _, Some(file)) =>
-          val dependency = s"${dep.module.repr}:${dep.version}"
           commitSourcesArtifact(MavenPackage(dep), file.toPath)
         case _ =>
       }
@@ -163,7 +198,7 @@ class PackageActor(
     buf.toList
   }
 
-  def indexClasspathArtifact(pkg: Package): Path = {
+  def lsifIndexPackage(pkg: Package): Path = {
     val sourceroot = packageDir(pkg)
     val dump = sourceroot.resolve("dump.lsif")
     if (!Files.isDirectory(sourceroot))
@@ -173,19 +208,38 @@ class PackageActor(
       new PrintStream(out) {
         override def toString(): String = "foobar"
       }
-    val env = LsifJava.app.env.withStandardOutput(ps).withStandardError(ps)
-    val app = LsifJava.app.withEnv(env).withReporter(ConsoleReporter(ps))
-    val index = app.run(
-      List(
-        "index",
-        "--cwd",
-        sourceroot.toString(),
-        "--output",
-        dump.toString(),
-        "--build-tool",
-        "lsif"
-      )
-    )
+    val pipe = Readlines(line => ps.println(line))
+
+    val index: Int =
+      pkg match {
+        case _: NpmPackage =>
+          os.proc("npm", "install").call(cwd = os.Path(sourceroot))
+          val tsconfig = sourceroot.resolve("tsconfig.json")
+          if (!Files.isRegularFile(tsconfig)) {
+            Files.write(tsconfig, List("{}").asJava)
+          }
+          os.proc("npx", "@olafurpg/lsif-tsc", "-p", sourceroot.toString)
+            .call(check = false, stdout = pipe, stderr = pipe)
+            .exitCode
+        case _ =>
+          val env = LsifJava
+            .app
+            .env
+            .withStandardOutput(ps)
+            .withStandardError(ps)
+          val app = LsifJava.app.withEnv(env).withReporter(ConsoleReporter(ps))
+          app.run(
+            List(
+              "index",
+              "--cwd",
+              sourceroot.toString(),
+              "--output",
+              dump.toString(),
+              "--build-tool",
+              "lsif"
+            )
+          )
+      }
     if (index != 0) {
       ps.flush()
       sys.error(out.toString())
@@ -195,17 +249,9 @@ class PackageActor(
 
   private def commitSourcesArtifact(dep: Package, file: Path): Unit = {
     val repo = packageDir(dep)
-    val date = "Thu Apr 8 14:24:52 2021 +0200"
-    def proc(command: String*) = {
-      os.proc(Shellable(command))
-        .call(cwd = os.Path(repo), env = Map("GIT_COMMITTER_DATE" -> date))
-    }
     Files.createDirectories(repo)
-    proc("git", "init")
-    val gitDir = repo.resolve(".git")
-    val deleteNonGitFiles =
-      new DeleteVisitor(deleteFile = file => !file.startsWith(gitDir))
-    Files.walkFileTree(repo, deleteNonGitFiles)
+    gitInit(repo)
+    deleteAllNonGitFiles(repo)
     FileIO.withJarFileSystem(AbsolutePath(file), create = false, close = true) {
       root =>
         FileIO
@@ -234,11 +280,13 @@ class PackageActor(
           }
         )
     }
-    val message = s"Version ${dep.version}"
-    Files.write(
-      repo.resolve(".gitignore"),
-      List("dump.lsif", packagehubCached).asJava
-    )
+    val gitignore = ListBuffer[String]("dump.lsif", packagehubCached)
+    dep match {
+      case _: NpmPackage =>
+        gitignore += "/tsconfig.json"
+        gitignore += "node_modules/"
+    }
+    Files.write(repo.resolve(".gitignore"), gitignore.asJava)
     val build = Obj()
     dep match {
       case MavenPackage(dep) =>
@@ -246,19 +294,45 @@ class PackageActor(
       case JdkPackage(version) =>
         build("indexJdk") = Bool(false)
         build("jvm") = Str(version)
+      case _ =>
     }
     Files.write(
       repo.resolve("lsif-java.json"),
       List(ujson.write(build, indent = 2)).asJava
     )
-    Files.write(repo.resolve(packagehubCached), List[String]().asJava)
-    proc("git", "add", ".")
-    proc("git", "commit", "--allow-empty", "--date", date, "-m", message)
-    proc("git", "tag", "-f", "-m", message, s"v${dep.version}")
+    cacheDirectory(dep)
+    gitCommitAll(dep.version, repo)
+  }
+
+  val date = "Thu Apr 8 14:24:52 2021 +0200"
+  def proc(repo: Path, command: String*) = {
+    os.proc(Shellable(command))
+      .call(cwd = os.Path(repo), env = Map("GIT_COMMITTER_DATE" -> date))
+  }
+
+  private def gitCommitAll(version: String, repo: Path): Unit = {
+    val message = s"Version ${version}"
+    proc(repo, "git", "add", ".")
+    proc(repo, "git", "commit", "--allow-empty", "--date", date, "-m", message)
+    proc(repo, "git", "tag", "-f", "-m", message, s"v${version}")
+  }
+
+  private def gitInit(repo: Path): Unit = {
+    proc(repo, "git", "init")
+  }
+  private def deleteAllNonGitFiles(repo: Path): Unit = {
+    val gitDir = repo.resolve(".git")
+    val deleteNonGitFiles =
+      new DeleteVisitor(deleteFile = file => !file.startsWith(gitDir))
+    Files.walkFileTree(repo, deleteNonGitFiles)
   }
 
   private val packagehubCached = "packagehub_cached"
 
+  private def cacheDirectory(pkg: Package): Unit = {
+    Files
+      .write(packageDir(pkg).resolve(packagehubCached), List[String]().asJava)
+  }
   private def isCached(pkg: Package): Boolean = {
     Files.exists(packageDir(pkg).resolve(packagehubCached))
   }

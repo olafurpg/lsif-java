@@ -31,7 +31,7 @@ sealed abstract class Package(
   def relativePath: Path = Paths.get(path)
 }
 object Package {
-  def npm(name: String, version: String): JdkPackage = {
+  def npm(name: String, version: String): NpmPackage = {
     NpmPackage(name, version)
   }
   def jdk(version: String): JdkPackage = {
@@ -62,11 +62,30 @@ object Package {
         Some(Package.maven(org, name, version) -> requestPath)
       case "jdk" :: version :: requestPath =>
         Some(Package.jdk(version) -> requestPath)
-      case "npm" :: name :: version :: requestPath =>
+      case "npm" :: GitRequestPrefix(parts, requestPath) =>
+        val name = parts.init.mkString("/")
+        val version = parts.last
+        pprint.log(name)
+        pprint.log(version)
         Some(Package.npm(name, version) -> requestPath)
       case _ =>
         None
     }
+
+  object GitRequestPrefix {
+    private val suffixes = List(
+      "info" :: "refs" :: Nil,
+      "git-upload-pack" :: Nil
+    )
+    def unapply(path: List[String]): Option[(List[String], List[String])] = {
+      suffixes.find(path.endsWith) match {
+        case Some(suffix) =>
+          Some(path.dropRight(suffix.length) -> suffix)
+        case None =>
+          None
+      }
+    }
+  }
   def fromString(value: String, coursier: String): Either[String, Package] = {
     value match {
       case s"maven:$library" =>
@@ -148,4 +167,7 @@ case class NpmPackage(packageName: String, override val version: String)
       s"npm:$packageName:$version",
       s"npm/$packageName/$version",
       version
-    )
+    ) {
+  def npmName = s"$packageName@$version"
+  def tarballFilename = s"$packageName-$version.tgz".replace('/', '-')
+}
