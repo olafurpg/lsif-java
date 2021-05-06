@@ -65,8 +65,6 @@ object Package {
       case "npm" :: GitRequestPrefix(parts, requestPath) =>
         val name = parts.init.mkString("/")
         val version = parts.last
-        pprint.log(name)
-        pprint.log(version)
         Some(Package.npm(name, version) -> requestPath)
       case _ =>
         None
@@ -74,7 +72,9 @@ object Package {
 
   object GitRequestPrefix {
     private val suffixes = List(
+      ".git" :: "info" :: "refs" :: Nil,
       "info" :: "refs" :: Nil,
+      ".git" :: "git-upload-pack" :: Nil,
       "git-upload-pack" :: Nil
     )
     def unapply(path: List[String]): Option[(List[String], List[String])] = {

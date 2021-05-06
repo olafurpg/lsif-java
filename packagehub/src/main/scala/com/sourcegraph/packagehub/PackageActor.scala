@@ -125,7 +125,7 @@ class PackageActor(
       val filename = tmp.resolve(npm.tarballFilename)
       val url = os
         .proc("npm", "info", npm.npmName, "dist.tarball")
-        .call()
+        .call(env = Map("NO_UPDATE_NOTIFIER" -> "true"))
         .out
         .trim()
       val in = new URL(url).openStream()
