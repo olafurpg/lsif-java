@@ -332,6 +332,7 @@ class PackageActor(
       case _: NpmPackage =>
         gitignore += "/tsconfig.json"
         gitignore += "node_modules/"
+      case _ =>
     }
     Files.write(repo.resolve(".gitignore"), gitignore.asJava)
     val build = Obj()
