@@ -3,9 +3,11 @@ package com.sourcegraph.packagehub
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.nio.file.Files
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.control.{NoStackTrace, NonFatal}
+import scala.util.control.NoStackTrace
+
 import cask.Response.Data
 import cask.model.Request
 import cask.model.Response

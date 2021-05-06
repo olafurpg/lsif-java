@@ -1,21 +1,26 @@
 package com.sourcegraph.packagehub
 
-import java.io.{ByteArrayOutputStream, File, IOException, PrintStream}
-import java.nio.file.{
-  FileSystems,
-  FileVisitResult,
-  Files,
-  Path,
-  Paths,
-  SimpleFileVisitor,
-  StandardCopyOption,
-  StandardOpenOption
-}
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
+import java.io.PrintStream
+import java.net.URL
+import java.nio.file.FileSystems
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
+
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
+
 import scala.meta.internal.io.FileIO
 import scala.meta.io.AbsolutePath
+
 import castor.Context
 import castor.SimpleActor
 import com.sourcegraph.io.DeleteVisitor
@@ -23,11 +28,8 @@ import com.sourcegraph.lsif_java.Dependencies
 import com.sourcegraph.lsif_java.LsifJava
 import coursier.core.Dependency
 import moped.reporters.ConsoleReporter
-import org.rauschig.jarchivelib.{
-  ArchiveFormat,
-  ArchiverFactory,
-  CompressionType
-}
+import org.rauschig.jarchivelib.ArchiverFactory
+import os.CommandResult
 import os.ProcessOutput.Readlines
 import os.Shellable
 import os.SubProcess
@@ -35,8 +37,6 @@ import ujson.Arr
 import ujson.Bool
 import ujson.Obj
 import ujson.Str
-
-import java.net.URL
 
 /**
  * Actor that creates git repos from package sources and (optionally LSIF
@@ -136,7 +136,9 @@ class PackageActor(
         .extract(filename.toFile, tmp.toFile)
       val allFiles = FileIO.listAllFilesRecursively(AbsolutePath(tmp))
       val packageJson = allFiles
-        .find(_.toNIO.endsWith("package.json"))
+        .filter(_.toNIO.endsWith("package.json"))
+        .sortBy(_.toNIO.iterator().asScala.length)
+        .headOption
         .getOrElse(
           sys.error(s"no such file: package.json (${allFiles.mkString(", ")})")
         )
@@ -353,7 +355,7 @@ class PackageActor(
   }
 
   val date = "Thu Apr 8 14:24:52 2021 +0200"
-  def proc(repo: Path, command: String*) = {
+  def proc(repo: Path, command: String*): CommandResult = {
     os.proc(Shellable(command))
       .call(cwd = os.Path(repo), env = Map("GIT_COMMITTER_DATE" -> date))
   }
