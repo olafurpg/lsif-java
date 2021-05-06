@@ -253,7 +253,7 @@ class PackageActor(
     val index: Int =
       pkg match {
         case _: NpmPackage =>
-          os.proc("npm", "install").call(cwd = os.Path(sourceroot))
+          os.proc("yarn", "install").call(cwd = os.Path(sourceroot))
           val tsconfig = sourceroot.resolve("tsconfig.json")
           if (!Files.isRegularFile(tsconfig)) {
             val config = Obj(

@@ -3,4 +3,5 @@ RUN apt-get update
 RUN apt-get install --yes maven npm
 RUN curl -fLo /coursier https://git.io/coursier-cli
 RUN chmod +x /coursier
+RUN apt-get install --yes yarn
 RUN /coursier launch --contrib lsif-java -- --help
