@@ -65,7 +65,12 @@ object Package {
       case "npm" :: GitRequestPrefix(parts, requestPath) =>
         val name = parts.init.mkString("/")
         val version = parts.last
-        Some(Package.npm(name, version) -> requestPath)
+        val actualName =
+          if (name.startsWith("-"))
+            "@" + name.stripPrefix("-")
+          else
+            name
+        Some(Package.npm(actualName, version) -> requestPath)
       case _ =>
         None
     }
@@ -164,8 +169,8 @@ case class JdkPackage(override val version: String)
 
 case class NpmPackage(packageName: String, override val version: String)
     extends Package(
-      s"npm:$packageName:$version".replace("@", "-"),
-      s"npm/$packageName/$version",
+      s"npm:$packageName:$version",
+      s"npm/$packageName/$version".replace("@", "-"),
       version
     ) {
   def npmName = s"$packageName@$version"
